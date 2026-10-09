@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:agentflow-test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+  security:
+    user:
+      name: alice
+      password: test-password-not-production
+server:
+  servlet:
+    session:
+      cookie:
+        secure: false
+agentflow:
+  bootstrap:
+    username: alice
+    password: test-password-not-production
