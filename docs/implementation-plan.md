@@ -1,0 +1,22 @@
+# Implementation plan
+
+Each slice must compile, pass its behavior tests, have a reviewed API contract, and document its limits. Add tests before implementation. Perform correctness, security, and simplification reviews before committing a phase.
+
+| Phase | Deliverable | Acceptance criteria | Depends on |
+| --- | --- | --- | --- |
+| 1 | Authenticated workflow foundation | PostgreSQL migrations; session auth and CSRF; owner-scoped CRUD; immutable versions; malformed/cyclic/disconnected graphs rejected; tests and CI | Specification |
+| 2 | Deterministic execution | Saved version bound to run; sequential execution; persisted node states; failures and cancellation recorded; restart strategy tested | 1 |
+| 3 | Planner and tool boundary | Deterministic planner first; registered tool allowlist; strict argument validation; bounded tool/model budgets; provider credentials configured before live integration | 2 |
+| 4 | Approvals and reliability | Durable pause; exact proposal binding; role checks; duplicate/concurrent decisions safe; classified bounded retries; timeout and ambiguous effect handling tested | 3 |
+| 5 | Visual frontend | React Flow editor; workflow CRUD; run traces; approval inbox; accessible states; critical demo covered by browser tests | 1–4 |
+| 6 | Delivery | PostgreSQL integration and restart tests; container deployment; CI; operational docs; threat review; recorded demo | 1–5 |
+
+## Phase 1 slices
+
+1. Pin the Java/Spring build and wrapper; add configuration, migrations, and schema validation.
+2. Test graph validation for duplicate IDs, dangling/duplicate edges, cycles, disconnected nodes, and invalid trigger counts; implement a bounded DAG validator.
+3. Test workflow creation, owner isolation, version history, stale updates, and archive behavior; implement DTOs, persistence, and services.
+4. Test unauthenticated requests, password login, CSRF enforcement, and invalid/unknown fields; implement session security and the HTTP API.
+5. Verify local startup and the authenticated CRUD path; add PostgreSQL Testcontainers coverage and Docker/CI configuration. Report any checks requiring unavailable infrastructure.
+
+The first increment ends at workflow management. It does not claim to execute tools or call a model. The next increment implements the deterministic runtime against this API and versioning contract.
