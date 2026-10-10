@@ -13,6 +13,8 @@ server:
       cookie:
         secure: false
 agentflow:
+  execution:
+    worker-enabled: false
   bootstrap:
     username: alice
     password: test-password-not-production

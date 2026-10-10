@@ -8,11 +8,15 @@ public record WorkflowDefinition(
         @NotNull @Size(min = 1, max = 50) List<@NotNull @Valid Node> nodes,
         @NotNull @Size(max = 100) List<@NotNull @Valid Edge> edges) {
     public enum NodeType { TRIGGER, AI_STEP, CONDITION, APPROVAL, ACTION }
+    public enum Operation { RECEIVE_INPUT, CLASSIFY_ISSUE, SEARCH_DOCUMENTATION, RECORD_RESULT }
 
     public record Node(
             @NotBlank @Pattern(regexp = "[a-zA-Z0-9_-]{1,64}") String id,
             @NotNull NodeType type,
-            @NotBlank @Size(max = 120) String label) {}
+            @NotBlank @Size(max = 120) String label,
+            Operation operation) {
+        public Node(String id, NodeType type, String label) { this(id, type, label, null); }
+    }
 
     public record Edge(@NotBlank String source, @NotBlank String target) {}
 }
