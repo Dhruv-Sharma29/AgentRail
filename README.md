@@ -193,9 +193,25 @@ python3 scripts/test_local_setup.py
 python3 scripts/compose-test.py --build --browser
 ```
 
-The check uses random project/port names, temporary credentials and its own database volume. It verifies security headers, Java authentication/CSRF, exact approvals, backend replacement, PostgreSQL backup restore, complete stack recreation and seven browser cases. It removes only its own containers/volume. A successful run writes `artifacts/agentflow-demo.webm` and `artifacts/agentflow-execution.png`; those generated artifacts are ignored by Git. [Demo guide](docs/demo-script.md).
+The check uses random project/port names, temporary credentials and its own database volume. It verifies security headers, Java authentication/CSRF, exact approvals, backend replacement, PostgreSQL backup restore, complete stack recreation and the browser suite. It removes only its own containers/volume. A successful run writes `artifacts/agentflow-demo.webm` and `artifacts/agentflow-execution.png`; those generated artifacts are ignored by Git. [Demo guide](docs/demo-script.md).
 
-Registration, password rotation, login throttling, production ingress, remote-tool reliability, and independent approver roles remain on the implementation plan. The API currently has a single USER role; approver and tool administration roles arrive with those modules. Execution audits cover lifecycle and step outcomes; authentication and administrative audits are future work.
+Registration, password rotation, login throttling, production ingress, additional remote tools and independent approver roles remain on the implementation plan. The API currently has a single USER role; approver and tool administration roles arrive with those modules. Execution audits cover lifecycle and step outcomes; authentication and administrative audits are future work.
+
+## Approved GitHub issues
+
+The Console editor supports a final **Create GitHub issue** action immediately after human approval. Its configured destination is `Dhruv-Sharma29/test`. The inbox shows the exact repository, title and body; a confirmed run shows a GitHub issue link. Java dispatches one durable intent and never automatically retries an uncertain creation. A run with UNKNOWN outcome offers **Verify existing issue**, which only reads and matches an existing issue.
+
+The connector is disabled by default. For development, add these values to the existing ignored `.env.local` file without sharing the token in chat:
+
+```properties
+AGENTFLOW_GITHUB_ENABLED=true
+AGENTFLOW_GITHUB_REPOSITORY=Dhruv-Sharma29/test
+GITHUB_TOKEN=<fine-grained token restricted to this repository with Issues write permission>
+```
+
+Restart the backend with your usual `dev,gemini` profile. For Compose, use the private `.env` instead and recreate the backend. Tool registry shows readiness without returning the token. Readiness checks configuration; the first approved request still validates actual GitHub access. Keep the connector disabled until ready to authorize a real issue.
+
+Open a support workflow, select its last action and choose **Create GitHub issue**. Save the version, start the run, then inspect and explicitly approve its ticket in the inbox. Cancellation after dispatch cannot remove an external issue; the trace retains any late receipt. On an unknown result, check the repository and reconcile its issue number rather than starting another run. [Detailed behavior and limitations](docs/github-ticket-tool.md).
 
 ## Project documents
 

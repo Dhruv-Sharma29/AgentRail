@@ -12,6 +12,7 @@ import { api, message } from "./api";
 import { useResource } from "./useResource";
 import { terminal, type Run } from "./types";
 import { Badge, date, ErrorNotice, JsonView } from "./ui";
+import { TicketResult } from "./TicketResult";
 export function RunView({
   id,
   navigate,
@@ -23,7 +24,9 @@ export function RunView({
     (signal) => api.request<Run>(`/api/runs/${id}`, "GET", undefined, signal),
     `run:${id}`,
     1500,
-    (run) => terminal(run.status),
+    (run) =>
+      terminal(run.status) &&
+      !run.tickets?.some((ticket) => ticket.status === "SENDING"),
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -114,7 +117,7 @@ export function RunView({
           <div>
             <h2>Waiting for your review</h2>
             <p>
-              The result action is paused. Inspect its exact payload before
+              The next action is paused. Inspect its exact payload before
               deciding.
             </p>
           </div>
@@ -185,6 +188,15 @@ export function RunView({
           ))}
         </section>
         <aside className="execution-info">
+          {run.tickets?.map((ticket) => (
+            <TicketResult
+              key={ticket.nodeId}
+              runId={run.id}
+              ticket={ticket}
+              cancelled={run.status === "CANCELLED"}
+              reload={resource.reload}
+            />
+          ))}
           <div className="info-card">
             <span className="eyebrow">EXECUTION DETAILS</span>
             <dl>

@@ -330,3 +330,65 @@ test("a save in progress cannot silently overwrite further editor changes", asyn
   await expect(page.getByText("Saved · v2", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Workflow name")).toBeEnabled();
 });
+
+test("saves a GitHub ticket destination and fails closed with a disabled connector", async ({
+  page,
+}, testInfo) => {
+  await login(page);
+  await page.getByRole("button", { name: "New workflow", exact: true }).click();
+  await page
+    .getByRole("article", { name: "Action node: Record result", exact: true })
+    .click();
+  await page
+    .getByRole("combobox", { name: "Action", exact: true })
+    .selectOption("CREATE_TICKET");
+  await expect(
+    page.getByLabel("GitHub repository", { exact: true }),
+  ).toHaveValue("Dhruv-Sharma29/test");
+  await expect(page.getByText(/Connector disabled/)).toBeVisible();
+  await page.getByLabel("Workflow name").fill("Approved GitHub ticket");
+  await page
+    .getByRole("button", { name: "Save workflow", exact: true })
+    .click();
+  await expect(page.getByText("Saved · v1", { exact: true })).toBeVisible();
+  const workflowId = page.url().split("/").pop()!;
+  const saved = await (
+    await page.request.get("/api/workflows/" + workflowId)
+  ).json();
+  expect(saved.definition.nodes[4].ticket.repository).toBe(
+    "Dhruv-Sharma29/test",
+  );
+  await page.reload();
+  await page
+    .getByRole("article", { name: "Action node: Record result", exact: true })
+    .click();
+  await expect(
+    page.getByLabel("GitHub repository", { exact: true }),
+  ).toHaveValue("Dhruv-Sharma29/test");
+  await page.screenshot({
+    path: testInfo.outputPath("github-ticket-editor.png"),
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Run workflow", exact: true }).click();
+  await expect(
+    page.getByText(/This workflow creates an external GitHub issue/),
+  ).toBeVisible();
+  await page.getByLabel("Issue subject").fill("Cannot log in");
+  await page.getByLabel("Issue description").fill("Password reset failed");
+  await page.getByRole("button", { name: "Start run", exact: true }).click();
+  await expect(page.getByTestId("run-status")).toHaveText("FAILED", {
+    timeout: 20000,
+  });
+  await expect(page.getByRole("alert")).toContainText(
+    "TICKET_CONNECTOR_DISABLED",
+  );
+  const trace = await (
+    await page.request.get("/api/runs/" + page.url().split("/").pop())
+  ).json();
+  expect(trace.tickets).toEqual([]);
+  expect(trace.approvals).toEqual([]);
+  await page
+    .getByRole("button", { name: "Tool registry", exact: true })
+    .click();
+  await expect(page.locator(".connector-status")).toContainText("DISABLED");
+});

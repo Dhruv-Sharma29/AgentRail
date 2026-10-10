@@ -91,6 +91,7 @@ export function fromCanvas(nodes: FlowNode[], edges: Edge[]): Definition {
       ...(n.operation != null && { operation: n.operation }),
       ...(n.agent != null && { agent: n.agent }),
       ...(n.approval != null && { approval: n.approval }),
+      ...(n.ticket != null && { ticket: n.ticket }),
       position: { x: bounded(position.x), y: bounded(position.y) },
     })),
     edges: edges.map(({ source, target }) => ({ source, target })),
@@ -161,13 +162,40 @@ export function validate(definition: Definition): string[] {
       (!node.agent || !node.agent.allowedTools.length)
     )
       errors.push("Choose approved tools for every agent.");
+    if (node.operation === "CREATE_TICKET") {
+      if (
+        !node.ticket ||
+        !/^[a-zA-Z0-9][a-zA-Z0-9-]{0,38}\/[a-zA-Z0-9][a-zA-Z0-9_.-]{0,99}$/.test(
+          node.ticket.repository,
+        )
+      )
+        errors.push("Use a GitHub destination in owner/repository format.");
+      const predecessor = definition.nodes.find(
+        (n) =>
+          n.id === definition.edges.find((e) => e.target === node.id)?.source,
+      );
+      if (
+        node.type !== "ACTION" ||
+        predecessor?.type !== "APPROVAL" ||
+        definition.edges.some((e) => e.source === node.id)
+      )
+        errors.push(
+          "Ticket creation must be the final action immediately after approval.",
+        );
+    } else if (node.ticket != null)
+      errors.push("Only ticket actions may configure a destination.");
     if (node.type === "APPROVAL") {
       const target = definition.nodes.find(
         (n) =>
           n.id === definition.edges.find((e) => e.source === node.id)?.target,
       );
-      if (target?.type !== "ACTION" || target.operation !== "RECORD_RESULT")
-        errors.push("Approval must immediately precede Record result.");
+      if (
+        target?.type !== "ACTION" ||
+        !["RECORD_RESULT", "CREATE_TICKET"].includes(target.operation ?? "")
+      )
+        errors.push(
+          "Approval must immediately precede Record result or Create GitHub issue.",
+        );
       if (
         !node.approval ||
         node.approval.timeoutSeconds < 60 ||

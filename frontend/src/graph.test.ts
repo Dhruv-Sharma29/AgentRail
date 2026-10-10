@@ -41,7 +41,7 @@ describe("workflow editor boundary", () => {
     const bypass = supportTemplate();
     bypass.nodes[4].operation = "CLASSIFY_ISSUE";
     expect(validate(bypass)).toContain(
-      "Approval must immediately precede Record result.",
+      "Approval must immediately precede Record result or Create GitHub issue.",
     );
   });
   it("refuses duplicate, self and branching connections", () => {
@@ -51,4 +51,40 @@ describe("workflow editor boundary", () => {
     expect(connect(edges, "a", "c")).toEqual(edges);
     expect(connect(edges, "b", "c")).toHaveLength(2);
   });
+});
+
+it("preserves the ticket destination and refuses an approval bypass", () => {
+  const definition = supportTemplate();
+  Object.assign(definition.nodes[4], {
+    operation: "CREATE_TICKET",
+    ticket: { repository: "Dhruv-Sharma29/test" },
+  });
+  const canvas = toCanvas(definition);
+  expect(fromCanvas(canvas.nodes, canvas.edges).nodes[4]).toMatchObject({
+    ticket: { repository: "Dhruv-Sharma29/test" },
+  });
+  expect(validate(definition)).toEqual([]);
+  definition.nodes.splice(3, 1);
+  definition.edges = [
+    { source: "receive", target: "classify" },
+    { source: "classify", target: "search" },
+    { source: "search", target: "record" },
+  ];
+  expect(validate(definition)).toContain(
+    "Ticket creation must be the final action immediately after approval.",
+  );
+});
+it("refuses missing or misplaced ticket destinations", () => {
+  const definition = supportTemplate();
+  Object.assign(definition.nodes[4], {
+    operation: "CREATE_TICKET",
+    ticket: { repository: "https://evil.test" },
+  });
+  expect(validate(definition)).toContain(
+    "Use a GitHub destination in owner/repository format.",
+  );
+  Object.assign(definition.nodes[4], { operation: "RECORD_RESULT" });
+  expect(validate(definition)).toContain(
+    "Only ticket actions may configure a destination.",
+  );
 });

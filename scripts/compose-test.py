@@ -33,7 +33,7 @@ def main():
             port = candidate.getsockname()[1]
         env_file = temporary / "compose.env"
         env_file.write_text(f"DATABASE_PASSWORD={uuid.uuid4().hex}\nBOOTSTRAP_USERNAME=demo\n"
-                            f"BOOTSTRAP_PASSWORD=demo-local-only\nWEB_PORT={port}\n")
+                            f"BOOTSTRAP_PASSWORD=demo-local-only\nWEB_PORT={port}\nAGENTFLOW_GITHUB_ENABLED=false\nGITHUB_TOKEN=\n")
         env_file.chmod(0o600)
         project = "agentflow-check-" + uuid.uuid4().hex[:10]
         command = ["docker", "compose", "-f", str(ROOT / "docker-compose.yml"),

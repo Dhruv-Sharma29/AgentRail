@@ -20,7 +20,7 @@ export default defineConfig({
     : [
         {
           command:
-            "java -jar ../backend/target/agentflow-0.1.0-SNAPSHOT.jar --spring.profiles.active=dev --server.port=18085 --spring.datasource.url='jdbc:h2:mem:agentflow-browser;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH' --agentflow.planner.provider=deterministic",
+            "java -jar ../backend/target/agentflow-0.1.0-SNAPSHOT.jar --spring.profiles.active=dev --server.port=18085 --spring.datasource.url='jdbc:h2:mem:agentflow-browser;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH' --agentflow.planner.provider=deterministic --agentflow.github.enabled=false",
           url: "http://127.0.0.1:18085/actuator/health",
           timeout: 45000,
           reuseExistingServer: false,

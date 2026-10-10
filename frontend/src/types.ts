@@ -1,7 +1,11 @@
 export type NodeType =
   "TRIGGER" | "ACTION" | "AI_STEP" | "APPROVAL" | "CONDITION";
 export type Operation =
-  "RECEIVE_INPUT" | "CLASSIFY_ISSUE" | "SEARCH_DOCUMENTATION" | "RECORD_RESULT";
+  | "RECEIVE_INPUT"
+  | "CLASSIFY_ISSUE"
+  | "SEARCH_DOCUMENTATION"
+  | "RECORD_RESULT"
+  | "CREATE_TICKET";
 export interface WorkflowNode {
   id: string;
   type: NodeType;
@@ -13,6 +17,7 @@ export interface WorkflowNode {
     maxToolCalls: number;
   } | null;
   approval?: { timeoutSeconds: number } | null;
+  ticket?: { repository: string } | null;
   position?: { x: number; y: number } | null;
 }
 export interface Definition {
@@ -117,6 +122,7 @@ export interface Run extends RunSummary {
   reservedPlannerTokens: number;
   plannerTokens: number;
   approvals: Approval[];
+  tickets: Ticket[];
 }
 export interface Tool {
   name: string;
@@ -127,3 +133,18 @@ export interface Tool {
 }
 export const terminal = (status: Status) =>
   ["SUCCEEDED", "FAILED", "CANCELLED"].includes(status);
+
+export interface Ticket {
+  nodeId: string;
+  status: "SENDING" | "SUCCEEDED" | "FAILED" | "UNKNOWN";
+  createdAt: string;
+  deadline: string;
+  finishedAt: string | null;
+  issueNumber: number | null;
+  issueUrl: string | null;
+  errorCode: string | null;
+}
+export interface TicketConnector {
+  repository: string;
+  ready: boolean;
+}

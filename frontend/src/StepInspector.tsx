@@ -1,9 +1,17 @@
 import { Trash2, SlidersHorizontal } from "lucide-react";
-import type { WorkflowNode, NodeType, Operation } from "./types";
+import type {
+  WorkflowNode,
+  NodeType,
+  Operation,
+  TicketConnector,
+} from "./types";
+import { api } from "./api";
+import { useResource } from "./useResource";
 const actions: [Operation, string][] = [
   ["CLASSIFY_ISSUE", "Classify issue"],
   ["SEARCH_DOCUMENTATION", "Find documentation"],
   ["RECORD_RESULT", "Record result"],
+  ["CREATE_TICKET", "Create GitHub issue"],
 ];
 export function StepInspector({
   node,
@@ -20,6 +28,16 @@ export function StepInspector({
   move: (position: { x: number; y: number }) => void;
   position?: { x: number; y: number };
 }) {
+  const connector = useResource(
+    (signal) =>
+      api.request<TicketConnector>(
+        "/api/tools/github",
+        "GET",
+        undefined,
+        signal,
+      ),
+    "github-connector",
+  );
   if (!node)
     return (
       <aside className="inspector">
@@ -88,9 +106,20 @@ export function StepInspector({
             Action
             <select
               value={node.operation ?? ""}
-              onChange={(event) =>
-                change({ ...node, operation: event.target.value as Operation })
-              }
+              onChange={(event) => {
+                const operation = event.target.value as Operation;
+                change({
+                  ...node,
+                  operation,
+                  ticket:
+                    operation === "CREATE_TICKET"
+                      ? {
+                          repository:
+                            connector.data?.repository ?? "Dhruv-Sharma29/test",
+                        }
+                      : null,
+                });
+              }}
             >
               <option value="">Choose an action</option>
               {actions.map(([value, label]) => (
@@ -100,6 +129,33 @@ export function StepInspector({
               ))}
             </select>
           </label>
+        )}
+        {node.operation === "CREATE_TICKET" && (
+          <>
+            <label>
+              GitHub repository
+              <input
+                value={node.ticket?.repository ?? ""}
+                maxLength={140}
+                placeholder="owner/repository"
+                onChange={(event) =>
+                  change({
+                    ...node,
+                    ticket: { repository: event.target.value },
+                  })
+                }
+              />
+            </label>
+            <p className="policy-note">
+              Creates one external issue after approval. Keep this as the final
+              step, immediately after human review.
+            </p>
+            <p className="hint">
+              {connector.data?.ready
+                ? `Server allows ${connector.data.repository}.`
+                : "Connector disabled. Configure it on the server before running this action."}
+            </p>
+          </>
         )}
         {node.type === "AI_STEP" && (
           <>
@@ -197,7 +253,7 @@ export function StepInspector({
             </label>
             <div className="policy-note">
               Execution pauses here. Only your explicit decision can authorize
-              the next result action.
+              the next result or ticket action.
             </div>
           </>
         )}

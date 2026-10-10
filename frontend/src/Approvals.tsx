@@ -171,6 +171,7 @@ function ApprovalReview({
     operation?: string;
     input?: { subject?: string };
     targetNodeId?: string;
+    ticket?: { repository: string; title: string; body: string };
   } | null;
   return (
     <section className="review-panel">
@@ -199,6 +200,24 @@ function ApprovalReview({
       <p className="hint">
         This is the frozen action. A decision applies only to the payload below.
       </p>
+      {payload?.ticket && (
+        <div className="ticket-review">
+          <span className="eyebrow">GITHUB ISSUE · EXTERNAL ACTION</span>
+          <dl>
+            <dt>Repository</dt>
+            <dd>{payload.ticket.repository}</dd>
+            <dt>Title</dt>
+            <dd>{payload.ticket.title}</dd>
+          </dl>
+          <pre className="payload" aria-label="Exact GitHub issue body">
+            {payload.ticket.body}
+          </pre>
+          <p className="hint">
+            Approval authorizes one creation attempt with these exact fields.
+            Cancelling after dispatch cannot remove an issue.
+          </p>
+        </div>
+      )}
       <pre className="payload" aria-label="Frozen action payload">
         {JSON.stringify(approval.payload, null, 2)}
       </pre>

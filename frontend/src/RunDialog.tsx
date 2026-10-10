@@ -19,6 +19,9 @@ export function RunDialog({
   const agent = workflow.definition.nodes.some(
     (node) => node.type === "AI_STEP",
   );
+  const ticket = workflow.definition.nodes.some(
+    (node) => node.operation === "CREATE_TICKET",
+  );
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -82,9 +85,11 @@ export function RunDialog({
         </label>
         <div className="policy-note">
           <ShieldCheck size={16} />
-          {agent
-            ? "Agent steps use the configured provider and may spend API tokens. Approval steps still require your decision."
-            : "This workflow uses local actions. Approval steps wait for your decision."}
+          {ticket
+            ? "This workflow creates an external GitHub issue. Review the exact repository, title and body before approving. Agent steps may spend API tokens."
+            : agent
+              ? "Agent steps use the configured provider and may spend API tokens. Approval steps still require your decision."
+              : "This workflow uses local actions. Approval steps wait for your decision."}
         </div>
         <ErrorNotice>{error}</ErrorNotice>
         <button className="primary" disabled={busy}>
