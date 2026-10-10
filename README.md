@@ -2,7 +2,7 @@
 
 A workflow platform where AI proposes actions and a Java backend validates, authorizes, and controls execution.
 
-AgentFlow implements authenticated workflow management, durable execution, and a Java-controlled planner/tool boundary: Java 21, Spring Boot 3.5.16, Spring AI 1.1.8, JPA, Flyway, session authentication with CSRF, owner-scoped APIs, immutable versions, run checkpoints, cancellation, tool validation, and execution audits. Live Gemini or OpenAI planning is opt-in. Durable human approvals and bounded pure local action retries are implemented. The React Flow frontend is the next phase.
+AgentFlow implements authenticated workflow management, durable execution, and a Java-controlled planner/tool boundary: Java 21, Spring Boot 3.5.16, Spring AI 1.1.8, JPA, Flyway, session authentication with CSRF, owner-scoped APIs, immutable versions, run checkpoints, cancellation, tool validation, and execution audits. Live Gemini or OpenAI planning is opt-in. Durable human approvals and bounded pure local action retries are implemented. The React Flow workspace includes visual editing, immutable version history, live execution traces and an approval inbox.
 
 ## Run locally
 
@@ -22,6 +22,24 @@ python3 scripts/smoke-test.py
 ```
 
 The smoke test creates and archives a sample workflow using real cookies and CSRF tokens. API details are in [docs/api-spec.md](docs/api-spec.md).
+
+## Open the visual workspace
+
+Keep the backend running. In a second terminal from the repository root:
+
+```sh
+cd frontend
+npm ci
+npm run dev
+```
+
+Requires Node 22.12+ (Node 24 is used in CI). Open [AgentFlow](http://127.0.0.1:5173) and sign in with `demo` / `demo-local-only` on the dev backend. The frontend entry point is `frontend/src/main.tsx`; launch it through Vite, not an individual source file. The Java entry point remains `AgentFlowApplication`.
+
+Click **New workflow**, edit the support template, and **Save workflow**. Drag nodes to arrange them; connect handles or use the keyboard connection controls. Select an edge and press Delete to disconnect it. Each save creates a version; stale edits retain your draft. The current engine supports one linear chain of triggers, local actions, configured agents and approval checkpoints.
+
+Click **Run workflow**, enter an issue and follow its execution trace. At the human checkpoint, open **Review approval**, inspect the frozen action, check the review box and explicitly approve or reject. You can also review your existing terminal-created request in **Approvals**; leave its decision to the person reviewing it. A saved workflow never runs automatically. The default new template uses local actions; the Agent template uses the backend's configured planner and may make paid calls when live planning is enabled.
+
+Vite proxies `/api` and `/actuator` to the loopback backend on 8080. Session cookies and CSRF remain enforced by Java. Credentials and provider keys stay out of the bundle. Stop Vite with Ctrl-C. A production build requires a same-origin API reverse proxy; the production frontend container/ingress is Phase 6.
 
 ## Run the first workflow
 
@@ -115,6 +133,18 @@ cd backend
 ./mvnw verify    # Also runs PostgreSQL Testcontainers tests; requires a running Docker daemon
 ```
 
+Frontend checks (from `frontend`, after `npm ci`):
+
+```sh
+npm run format:check
+npm test
+npm run build
+npx playwright install chromium
+npm run test:e2e
+```
+
+Browser tests require the built backend jar. They launch their own deterministic in-memory H2 backend on 18085 and Vite on 5174, then clean up both; they do not use the development database or a live provider. CI checks both Java and the frontend and retains failed browser traces/screenshots.
+
 From the repository root, after building the jar and with Docker running:
 
 ```sh
@@ -144,6 +174,7 @@ Registration, password rotation, login throttling, production ingress, remote-to
 - [MVP specification](docs/specification.md)
 - [Current architecture](docs/architecture.md)
 - [Phases and acceptance criteria](docs/implementation-plan.md)
+- [Visual workspace acceptance criteria](docs/phase-5-frontend.md)
 - [API contract](docs/api-spec.md)
 - [Skill installation and provenance](docs/skills.md)
 - [Verification and review](docs/verification.md)

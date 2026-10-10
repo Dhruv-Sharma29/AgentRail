@@ -74,3 +74,16 @@ The linear plan allows an APPROVAL immediately before a pure RECORD_RESULT actio
 Approval pauses and decisions commit atomically with audits. Rejected/expired requests terminate the run; cancellation closes outstanding approvals. A decision adds persisted wait milliseconds to the active deadline. Execution rechecks approved status, current persisted role and exact frozen payload/context before each action attempt. The inbox is bounded and owner-scoped; unexpired waiting runs do not occupy the worker's runnable page.
 
 Pure Java ACTION handlers may classify a failure as transient. An explicit operation allowlist prevents newly added effecting tools from inheriting retry permission. Three attempts are permitted, with persisted 2/4-second backoff and 0–500 ms jitter. No handler runs before nextAttemptAt; success, failure and cancellation clear it. Unsuccessful attempts preserve the prior checkpoint and add safe STEP_RETRY_SCHEDULED audits. Run deadlines include delays. Agent batches, provider calls, denials and uncertain external outcomes never enter this retry path. Database commit failures roll back the attempted local work; only pure handlers can currently be replayed safely. Remote capabilities must add their own durable intent, idempotency and outcome reconciliation first.
+
+
+## Visual workspace
+
+The React/TypeScript frontend is a separate Vite project. `api.ts` owns fixed same-origin API requests and in-memory CSRF state; login refreshes the token after Spring's session rotation. Cookies remain HttpOnly and are not copied to local storage. An expired current session unmounts protected views; delayed 401 responses from an older session cannot clear a newly established one.
+
+`graph.ts` converts only the strict workflow contract to/from React Flow nodes and edges. Optional coordinates are bounded to ±10,000 and stored in version JSON; React Flow internals never enter an API definition. The editor reflects the engine's linear-chain restrictions, retains conflicted drafts and requires a saved version before starting. Java independently validates every definition and start.
+
+`useResource.ts` scopes responses to resource identity, cancels unmounted loads and serializes polling. Workflow/version/run/approval lists use bounded pages. Execution polling stops after terminal status. Owner identity is supplied only by the Java session. Each unchanged run submission retains one request key across an uncertain HTTP result; the server enforces idempotency. Mutations and approval decisions have no automatic retries.
+
+The approval view displays the server's exact frozen payload as React text, with its digest, role and deadline. Its explicit review checkbox is bound to request ID and digest; a stale or failed decision clears it and refreshes the request. This interface never grants permission: Java verifies ownership, current roles, digest and lifecycle under its run lock.
+
+Development Vite binds to loopback 5173 and proxies only API/health paths to loopback 8080. No CORS exception or backend security change was added. Production requires the static build and API behind the same HTTPS origin. The browser test harness starts an isolated deterministic backend and frontend, without file-backed development data or paid requests.

@@ -49,3 +49,13 @@ Slices 1–3 implement the deterministic proposal boundary. Slice 4 implements o
 4. Review and demo: migration of populated V4 databases preserves history; full verification; interactive approval demo and API/runtime documentation.
 
 Scope: the complete support flow now reaches a human checkpoint and records an approved local result. External ticket creation, independent approver roles, remote-effect idempotency/reconciliation and branching are separate increments. Phase 5 can build its editor, traces and approval inbox against these stable APIs.
+
+
+## Phase 5 slices — implemented
+
+1. Persist optional bounded editor coordinates in immutable workflow versions; strict validation and legacy definitions remain compatible. No schema migration or execution permission is added.
+2. Build a React/TypeScript/Tailwind workspace with cookie sessions, CSRF rotation, owner-scoped workflow CRUD, version history and a controlled React Flow editor. Keep transport, graph conversion, resource lifecycle and screens in separate modules.
+3. Connect explicit saved-version starts, retained request keys, step/audit traces, terminal-aware polling and cancellation. Add the exact-payload approval inbox and registered-tool inspection.
+4. Verify with API/graph unit tests, production compilation and a real deterministic backend in Chromium. Exercise conflict preservation, literal hostile text, lost start responses, keyboard editing, modal focus, logout and session expiry. Document startup and add frontend CI.
+
+The next increment is Phase 6: a same-origin frontend/API container deployment, PostgreSQL Compose verification, operational configuration, security/dependency review and a recorded demo. This phase does not introduce external ticket tools, branching, independent approvers or a production ingress.
