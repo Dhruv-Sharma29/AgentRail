@@ -8,8 +8,12 @@ async function login(page: Page) {
     page.getByRole("heading", { name: "Your workflows" }),
   ).toBeVisible();
 }
-async function create(page: Page, name: string) {
+async function create(page: Page, name: string, agent = false) {
   await page.getByRole("button", { name: "New workflow", exact: true }).click();
+  if (agent)
+    await page
+      .getByRole("button", { name: "Agent template", exact: true })
+      .click();
   await page.getByLabel("Workflow name").fill(name);
   await page
     .getByRole("button", { name: "Save workflow", exact: true })
@@ -31,11 +35,11 @@ async function start(page: Page) {
 }
 test("canvas save/reload, immutable versions, explicit approval and live trace", async ({
   page,
-}) => {
+}, testInfo) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await login(page);
-  await create(page, "Browser approval flow");
+  await create(page, "Browser approval flow", true);
   await expect(page.locator(".react-flow__node")).toHaveCount(5);
   await page.reload();
   await expect(page.getByLabel("Workflow name")).toHaveValue(
@@ -69,6 +73,23 @@ test("canvas save/reload, immutable versions, explicit approval and live trace",
     timeout: 15000,
   });
   await expect(page.getByText("RUN_SUCCEEDED", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("DETERMINISTIC PLANNER", { exact: true }),
+  ).toBeVisible();
+  const trace = await (
+    await page.request.get("/api/runs/" + page.url().split("/").pop())
+  ).json();
+  expect(trace.plannerCalls).toBe(2);
+  expect(trace.toolCalls).toBe(2);
+  expect(
+    trace.steps.filter(
+      (step: { policyStatus: string }) => step.policyStatus === "APPROVED",
+    ),
+  ).toHaveLength(2);
+  await page.screenshot({
+    path: testInfo.outputPath("execution.png"),
+    fullPage: true,
+  });
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Sign in", exact: true }),
