@@ -92,3 +92,16 @@ Verified on 10 October 2026:
 The host jar rebuild exposed lazy class-loading errors in the earlier dev process, which still had the replaced archive open. Its owned process was stopped and restarted with the same dev/Gemini profile and H2 database; no live provider request or user approval was initiated. The startup/build instructions now require stopping a process that is running the same archive before rebuilding it. Persistent container authentication and the restored development health/history were checked separately.
 
 The final review covered the publication/network boundary, cookie scope, private build contexts, proxy retry behavior, approval recovery, UUID-validated backup verification, disposable-project cleanup and dependency applicability. Graph coverage was checked for all relied-on source files; literal/configuration reads supplement the best-effort graph, whose ambiguous cross-language call matches are not treated as execution evidence. Public TLS hosting, restricted production database roles, supported-platform patches, account lifecycle/throttling, off-host encrypted backup policy and independent approver roles remain documented follow-up work.
+
+## Animated workflow preview
+
+The supplied pipeline component is integrated into the sign-in page in the existing forest/cream theme. The illustration follows receive → AI proposal → Java validation → human approval → result recording. Synthetic usage counters and unimplemented external tools are replaced with an explicit preview label. It performs no execution or approval requests.
+
+Acceptance checks on 10 October 2026:
+
+- The new browser case failed before integration. Pause freezes the message and removes SVG motion; play resumes it. Initial and live reduced-motion preferences disable animation. A production regression exposed the installed Motion hook's initial-only preference state; a native media-query subscription via `useSyncExternalStore` fixed it, with listener/timer cleanup.
+- Mobile login keeps the sign-in action in view and uses a readable ordered pipeline list at 390 × 844 without horizontal overflow. Desktop composition was inspected at 1280 × 720. Accessible labels, non-announcing preview messages and unique SVG marker IDs are retained.
+- Formatting, nine unit tests, TypeScript/Vite compilation and eight Chromium cases pass. All eight also pass against the rebuilt static container with its existing CSP and disposable PostgreSQL database. The container recovery/approval harness passes and removes only its own temporary deployment. No paid provider calls or real approval decisions are used.
+- Framer Motion 14.1.0 is pinned with the lockfile; its dependency tree reports zero known npm vulnerabilities. The pipeline is loaded separately (about 30 kB gzip) so the main bundle remains about 142 kB gzip. Component-directory and alias setup is documented in README.
+
+Review checked honest preview copy, linear authorization boundaries, reduced-motion changes, cleanup, literal React rendering, responsive layout and lazy loading. Authentication, Java execution policy, API transport and security headers are unchanged. The user's untracked `designs/` files are left untouched.

@@ -1,8 +1,11 @@
-import { useState, type FormEvent } from "react";
+import { lazy, Suspense, useState, type FormEvent } from "react";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import { api, message } from "./api";
 import type { User } from "./types";
 import { ErrorNotice, Logo } from "./ui";
+const EnterpriseAIPipeline = lazy(
+  () => import("@/components/ui/ai-agent-pipeline"),
+);
 export function Login({ signedIn }: { signedIn: (user: User) => void }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -32,7 +35,7 @@ export function Login({ signedIn }: { signedIn: (user: User) => void }) {
           <Logo />
           AgentFlow<span className="brand-tag">WORKSPACE</span>
         </div>
-        <div>
+        <div className="story-intro">
           <span className="eyebrow">INTELLIGENCE, WITH INTENTION</span>
           <h1>
             From a good idea
@@ -44,16 +47,12 @@ export function Login({ signedIn }: { signedIn: (user: User) => void }) {
             <br />
             Stay in control of every action.
           </p>
-          <div className="story-flow">
-            <span>01 · Receive</span>
-            <i />
-            <span>02 · Think</span>
-            <i />
-            <span>03 · Review</span>
-            <i />
-            <span>04 · Act</span>
-          </div>
         </div>
+        <Suspense
+          fallback={<div className="pipeline-placeholder" aria-hidden="true" />}
+        >
+          <EnterpriseAIPipeline />
+        </Suspense>
         <small>
           <ShieldCheck size={17} />
           Every action leaves a trace.
@@ -61,6 +60,10 @@ export function Login({ signedIn }: { signedIn: (user: User) => void }) {
       </section>
       <section className="login-panel">
         <div className="login-form">
+          <div className="brand login-mobile-brand">
+            <Logo />
+            AgentFlow
+          </div>
           <span className="eyebrow">YOUR WORKFLOW WORKSPACE</span>
           <h2>Welcome back.</h2>
           <p>Sign in to build, run, and review your workflows.</p>

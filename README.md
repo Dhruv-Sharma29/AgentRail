@@ -41,6 +41,10 @@ Click **Run workflow**, enter an issue and follow its execution trace. At the hu
 
 Vite proxies `/api` and `/actuator` to the loopback backend on 8080. Session cookies and CSRF remain enforced by Java. Credentials and provider keys stay out of the bundle. Stop Vite with Ctrl-C. The container setup below serves the compiled frontend and API through one origin.
 
+The sign-in page includes an animated support-workflow preview with pause/play controls and a static reduced-motion mode. It is an illustration; it does not start workflows, decide approvals, or display live usage. The reusable component is `frontend/src/components/ui/ai-agent-pipeline.tsx`, imported with `@/components/ui/ai-agent-pipeline`. The `@` alias maps to `frontend/src` in both Vite and TypeScript. Shared styles are in `frontend/src/styles.css`; Tailwind 4 and TypeScript are already configured.
+
+Reusable UI components belong in `frontend/src/components/ui`, matching the shadcn directory convention without moving the existing workspace modules. This SVG component needs Framer Motion but no shadcn primitives or remote images. To install shadcn primitives later, run `npx shadcn@latest init` from `frontend`, select Vite, use the existing stylesheet and `@` aliases, then review the generated theme/configuration before adding components. See the [shadcn Vite setup](https://ui.shadcn.com/docs/installation/vite).
+
 ## Run the first workflow
 
 Restart the backend after pulling/building changes. With it running, use a second terminal from the repository root:

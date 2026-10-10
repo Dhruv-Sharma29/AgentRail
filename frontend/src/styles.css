@@ -522,22 +522,23 @@ textarea {
 .login-page {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 1.05fr 1fr;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
 }
 .login-story {
   background: #23372d;
   color: #f6f8ee;
-  padding: 50px 55px;
+  padding: 28px clamp(28px, 4vw, 65px);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  gap: 18px;
   min-height: 100vh;
 }
 .login-story h1 {
-  font-size: 49px;
+  font-size: clamp(34px, 3.4vw, 44px);
   line-height: 1.18;
   letter-spacing: -2px;
-  margin: 18px 0 24px;
+  margin: 14px 0 16px;
 }
 .login-story p {
   color: #aebead;
@@ -549,22 +550,22 @@ textarea {
   gap: 9px;
   align-items: center;
 }
-.story-flow {
-  display: flex;
-  align-items: center;
-  margin-top: 50px;
-  color: #c6d9b5;
-  font-size: 10px;
+.pipeline-placeholder {
+  min-height: 320px;
 }
-.story-flow span {
-  padding: 10px;
-  border: 1px solid #506849;
-  border-radius: 6px;
+.pipeline-control {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 6px;
+  border: 1px solid #b9d89530;
+  background: transparent;
+  color: #c2d1bb;
 }
-.story-flow i {
-  width: 20px;
-  height: 1px;
-  background: #506849;
+.pipeline-control:hover:not(:disabled) {
+  background: #b9d89515;
+}
+.login-mobile-brand {
+  display: none;
 }
 .login-panel {
   display: flex;
@@ -706,7 +707,18 @@ form .fields {
     grid-template-columns: 1fr;
   }
   .login-story {
+    min-height: 0;
+    padding: 24px;
+    order: 2;
+  }
+  .login-story .brand,
+  .login-story .story-intro,
+  .login-story small {
     display: none;
+  }
+  .login-mobile-brand {
+    display: flex;
+    margin-bottom: 32px;
   }
   .login-panel {
     min-height: 100vh;
