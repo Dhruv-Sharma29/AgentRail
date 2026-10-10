@@ -1,0 +1,17 @@
+{
+  "name": "Deterministic support intake",
+  "description": "Local classification, documentation lookup and persisted result. No model or external ticket service.",
+  "definition": {
+    "nodes": [
+      {"id": "receive", "type": "TRIGGER", "label": "Receive issue"},
+      {"id": "classify", "type": "ACTION", "label": "Classify issue", "operation": "CLASSIFY_ISSUE"},
+      {"id": "search", "type": "ACTION", "label": "Find documentation", "operation": "SEARCH_DOCUMENTATION"},
+      {"id": "record", "type": "ACTION", "label": "Record result", "operation": "RECORD_RESULT"}
+    ],
+    "edges": [
+      {"source": "receive", "target": "classify"},
+      {"source": "classify", "target": "search"},
+      {"source": "search", "target": "record"}
+    ]
+  }
+}

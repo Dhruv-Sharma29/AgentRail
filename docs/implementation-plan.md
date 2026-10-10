@@ -20,3 +20,13 @@ Each slice must compile, pass its behavior tests, have a reviewed API contract, 
 5. Verify local startup and the authenticated CRUD path; add PostgreSQL Testcontainers coverage and Docker/CI configuration. Report any checks requiring unavailable infrastructure.
 
 The first increment ends at workflow management. It does not claim to execute tools or call a model. The next increment implements the deterministic runtime against this API and versioning contract.
+
+## Phase 2 slices
+
+1. Extend definitions with optional typed operations and test executable semantics: linear chain only, explicit local actions, no AI/condition/approval bypass.
+2. Add immutable-version run binding, bounded issue input, scoped request idempotency, run history, ownership and CSRF checks.
+3. Persist ordered steps, checkpoints and lifecycle audit events; implement pure local support handlers.
+4. Advance one step per transaction through a bounded polling worker; test rollback, competing workers, failure termination and cancellation.
+5. Verify the same contracts against PostgreSQL and abrupt Java process restart; add executable demo and restart scripts, CI and runtime documentation.
+
+This slice records a local support result. Remote ticket creation, live classification, approval pauses and retries belong to later phases. Phase 3 introduces proposal validation against a Java tool registry before adding a provider.

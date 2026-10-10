@@ -1,33 +1,35 @@
-# Foundation verification
+# Verification and review
 
-Verified locally on 2026-10-09 with Oracle JDK 25.0.1; compilation targets Java 21. CI is configured for Temurin 21.
+Verified locally on 2026-10-10 with Oracle JDK 25.0.1; compilation targets Java 21. CI is configured for Temurin 21. The original foundation's PostgreSQL gate also passed in the user's supplied terminal log: 27 H2 tests plus 13 PostgreSQL tests.
 
 ## Successful checks
 
-- Skill-creator's bundled validator passed all 11 installed/project skills. Referenced Markdown files were checked for existence.
-- `./mvnw test`: 27 tests passed, zero failures, errors, or skips. Includes 14 graph tests and 13 HTTP/auth/workflow tests.
-- `./mvnw package`: succeeded and produced the executable Spring Boot jar.
-- `python3 scripts/smoke-test.py`: passed against the packaged application on loopback, using actual login credentials, session cookies, and CSRF tokens. Covers create, update, stale-edit conflict, history, archive, logout, and unauthenticated access.
-- `docker compose config --quiet`: passed with validation-only environment values; no containers were started by this check.
-- Maven distribution downloaded from Maven Central, verified against SHA-512, and its SHA-256 pinned in wrapper configuration.
+- All 11 installed/project skills passed the skill-creator validator; referenced Markdown resources exist.
+- `./mvnw -o verify`: 78 tests passed, no failures, errors or skips. Includes 51 H2/unit tests and 27 PostgreSQL contract tests, and builds the executable jar. PostgreSQL tests exercise Flyway V1/V2, schema validation, ownership, immutable versions, request idempotency, concurrent starts/workers, cancellation, failure termination and checkpoint rollback.
+- `python3 scripts/restart-test.py`: passed against an isolated PostgreSQL container. The script created a run, waited for its first committed step, sent SIGKILL to its own Java child, started a fresh Java process, and verified SUCCEEDED, one attempt per step and exactly seven ordered audit events.
+- The foundation's real HTTP smoke test passed with session cookies, actual password login and CSRF tokens. The new restart test exercises the same login mechanism and the execution demo's real HTTP workflow/start/poll/idempotency path.
+- `python3 scripts/execution-demo.py --base-url <isolated-local-port>` passed against a fresh dev-profile jar and temporary H2 database. All four steps succeeded, duplicate start reused the run, and seven audit events were reported.
+- Maven's pinned distribution was verified against SHA-512 and its SHA-256 recorded in the wrapper.
 
-Graph tests first recorded 12 failures against an empty validator before implementation. HTTP tests recorded 8 expected contract failures before endpoints existed. The test environment needed an explicit Mockito agent because dynamic attachment failed under the Java 25 sandbox; this was fixed before completing the HTTP red/green cycle.
+TDD evidence: foundation graph tests recorded 12 initial failures and HTTP tests eight contract failures. Execution API tests recorded six failures before operation support and endpoints existed, followed by endpoint 404 failures. Execution policy and handler/worker tests failed before their classes/methods existed. A trace regression failed because the trigger's input omitted the submitted subject; it passes after recording the issue as trigger input.
 
-## Incomplete checks
-
-`./mvnw verify` reached PostgreSQL integration testing and failed while obtaining a container because the Docker daemon is stopped/unavailable. It did not exercise PostgreSQL migrations, schema validation, or locking. H2 results do not substitute for those checks. PostgreSqlWorkflowIT repeats the complete HTTP/ownership/version/race contract against real PostgreSQL. CI runs the gate without a silent skip.
-
-Container image builds, a running Compose deployment, and remote deployment have not been verified. No claim of production readiness is made. Phase 1 remains pending PostgreSQL/container verification.
+The local test environment uses an explicit Mockito agent because dynamic attachment failed under Java 25. PostgreSQL verification requires Docker socket access beyond the filesystem sandbox; the authorized run passed. Docker Desktop subsequently stopped before the restart script could connect. Reopening Docker restored the socket and the restart check passed. No integration checks silently skip missing Docker.
 
 ## Separate review pass
 
-Reviewed correctness, readability, boundaries, security, and bounded query behavior after implementation, using the installed review workflow and project agent-security-review skill.
+Reviewed tests first, then correctness, readability, module boundaries, security, query bounds and recovery behavior using code-review-and-quality and agent-security-review.
 
-- Identity comes from the security principal. Object reads, edits, archives, and history lookups are owner-scoped; foreign owners see 404. Request-supplied ownership fields are rejected.
-- Session login preserves CSRF and session-fixation defenses. Passwords are hashed with BCrypt. Secure cookies default on; public dev credentials are confined to the explicit loopback dev profile.
-- Version records are immutable through the API. Updates serialize on the owned row and check expectedVersion. Invalid graph updates leave metadata/version unchanged; concurrent edits create exactly one new version in H2 tests.
-- DTOs and persistence entities are separate. Graphs and list sizes are bounded. Errors omit internal traces. Workflow versions use a text column without PostgreSQL large-object/OID mapping.
-- Structural exploration used codebase-memory with coverage checks for all 14 reviewed main source files. The graph did not expose complete service call paths; source snippets and direct inspection supplied the boundary evidence. Coverage is a best-effort signal.
-- No speculative engine/provider interfaces or permissive tool executor were added. The next increment has explicit contracts in the specification and plan.
+- Ownership derives from the persisted security principal. Run starts, reads, cancellation and history are owner-scoped; missing/unowned resources return 404. Unknown ownership/input fields fail validation. Mutations retain CSRF protection.
+- A run's graph version, input and execution plan are immutable through the API. Labels cannot select operations. AI/approval/condition/branching nodes are refused at start; approval nodes cannot be silently bypassed.
+- Idempotency keys bind owner, workflow, exact input and explicit version. A workflow lock and database uniqueness constraint prevent duplicate starts. A run lock serializes worker advances, cancellation and replay snapshots. Read traces use a repeatable-read transaction.
+- Local handlers have no shell, SQL, arbitrary filesystem, URL, model or external ticket capability. Issue text remains data. Graphs, issue inputs, history pages and worker batches are bounded.
+- Step outcomes, run checkpoints and audit records commit atomically. Rollback leaves the prior checkpoint intact; restart discovers pending/running work. Cancelled/failed runs cannot advance, and terminal cancellation conflicts. No claim of exactly-once external execution is made.
+- Audit events omit issue text and credentials. Run/step inputs and outputs contain issue content and are restricted to their owner. Handler error codes omit exception details. The initial audit scope covers execution, not all security activity.
+- Existing schema and version definitions remain compatible. Optional typed operations preserve old saved graphs; unconfigured actions cannot execute. No dependencies or model-provider configuration were added.
+- Structural discovery used codebase-memory and cited-path coverage checks, with source inspection for incomplete Java call relationships and new/changed files. Graph coverage remains a best-effort signal.
 
-Known follow-up requirements: PostgreSQL verification, registration/password rotation, login throttling, execution audit records, approvals, tool authorization, model credentials, durable run recovery, and production ingress. These are described as future work, not existing safeguards.
+## Limits and follow-up work
+
+The current engine supports bounded local actions in one linear chain. Live AI/tool proposals, external ticket creation, approval pauses, branching, tool retries, deadlines and remote-effect reconciliation are future phases. Authentication/administration audits, registration, password rotation, login throttling, retention/encryption policy and production ingress remain future work.
+
+Container image builds, a full running Compose deployment and remote deployment have not been verified. The process restart test does verify the application jar against PostgreSQL; it does not verify the production container image. CI configuration is committed, but a hosted CI run is not claimed.

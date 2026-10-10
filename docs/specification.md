@@ -14,7 +14,7 @@ The API owns workflow authorization, graph validation, immutable versions, run t
 - Updating a workflow creates an immutable version. A run binds to one version permanently.
 - Node types are trigger, AI step, condition, approval, and action. The MVP accepts directed acyclic graphs with one trigger and no disconnected nodes. Execution semantics for branches are added in the engine phase.
 - The initial workflow is support intake → classification → documentation search → human approval → ticket creation.
-- A deterministic planner proves engine behavior first. Live model integration is a separate phase and must be visibly distinguished from deterministic mode.
+- A deterministic runtime proves engine behavior first. A proposal planner follows in Phase 3. Live model integration is a separate phase and must be visibly distinguished from deterministic mode.
 - Backend-registered tools carry strict argument schemas, allowed roles, risk policy, limits, and idempotency behavior. Models cannot register tools or override those policies.
 - Approvals persist the exact proposal. Approved arguments cannot change without another approval. Rejected or cancelled runs cannot execute subsequent effects.
 - Every run, node attempt, validation decision, approval, and outcome receives persisted status and audit records. Logs must exclude credentials and unnecessary user content.

@@ -9,3 +9,4 @@ frontend/dist/
 *.log
 .idea/
 .vscode/
+__pycache__/
