@@ -20,6 +20,9 @@ class WorkflowRun {
     @Column(nullable = false, updatable = false, length = 32) String mode = "DETERMINISTIC";
     @Column(nullable = false) int plannerCalls;
     @Column(nullable = false) int toolCalls;
+    @Column(updatable = false, length = 64) String plannerModel;
+    @Column(nullable = false) int reservedPlannerTokens;
+    @Column(nullable = false) int plannerTokens;
     @Column(nullable = false, updatable = false) Instant createdAt;
     Instant startedAt;
     Instant finishedAt;

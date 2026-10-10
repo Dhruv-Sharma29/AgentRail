@@ -18,6 +18,10 @@ class NodeExecution {
     @Column(columnDefinition = "text") String proposal;
     @Column(length = 20) String policyStatus;
     @Column(length = 64) String decisionCode;
+    UUID planningIntentId;
+    @Column(columnDefinition = "text") String planningRequest;
+    Instant planningDeadline;
+    @Column(length = 20) String planningState;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 30) RunStatus status;
     @Column(nullable = false) int attempts;
     @Column(columnDefinition = "text") String input;

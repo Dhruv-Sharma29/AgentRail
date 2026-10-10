@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.beans.factory.annotation.Value;
 import java.time.Instant;
 import java.time.Clock;
 import java.util.*;
@@ -33,6 +34,8 @@ public class ExecutionService {
     private final Planner planner;
     private final ProposalPolicy proposalPolicy;
     private final ToolRegistry tools;
+    @Value("${agentflow.planner.provider:deterministic}") private String provider;
+    @Value("${agentflow.planner.model:gpt-4.1-mini-2025-04-14}") private String model;
 
     public ExecutionService(RunRepository runs, NodeExecutionRepository steps, RunEventRepository events,
             WorkflowRepository workflows, WorkflowVersionRepository versions, UserRepository users, ExecutionPlan plan, ObjectMapper json,
@@ -60,7 +63,10 @@ public class ExecutionService {
         var ordered = plan.validate(decode(version.getDefinition(), WorkflowDefinition.class));
         var now = clock.instant();
         var run = new WorkflowRun(workflowId, version.getId(), version.getNumber(), owner, request.idempotencyKey(), input, now);
-        if (ordered.stream().anyMatch(n -> n.agent() != null)) run.mode = "DETERMINISTIC_PLANNER";
+        if (ordered.stream().anyMatch(n -> n.agent() != null)) {
+            run.mode = "DETERMINISTIC_PLANNER";
+            if (provider.equals("openai")) { run.mode = "OPENAI_PLANNER"; run.plannerModel = model; }
+        }
         runs.saveAndFlush(run);
         for (int i = 0; i < ordered.size(); i++) {
             var node = ordered.get(i);
@@ -92,7 +98,9 @@ public class ExecutionService {
         if (run.status == RunStatus.CANCELLED) return details(run);
         if (run.status.terminal()) throw new ResponseStatusException(HttpStatus.CONFLICT, "A finished run cannot be cancelled");
         var now = clock.instant();
-        steps.findByRunIdOrderByOrdinal(id).stream().filter(s -> s.status == RunStatus.PENDING).forEach(s -> s.cancel(now));
+        steps.findByRunIdOrderByOrdinal(id).stream().filter(s -> s.status == RunStatus.PENDING).forEach(s -> {
+            s.cancel(now); if ("REQUESTED".equals(s.planningState)) s.planningState = "ABANDONED";
+        });
         run.finish(RunStatus.CANCELLED, now, null);
         event(run, null, "RUN_CANCELLED", now);
         return details(run);
@@ -114,10 +122,11 @@ public class ExecutionService {
         }
         var trace = steps.findByRunIdOrderByOrdinal(id);
         var step = trace.stream().filter(s -> s.status == RunStatus.PENDING).findFirst().orElseThrow();
+        if (run.mode.equals("OPENAI_PLANNER") && step.agentSettings != null) return;
         var input = step.operation == WorkflowDefinition.Operation.RECEIVE_INPUT ? run.input : run.context;
         String output;
         try {
-            if (run.mode.equals("DETERMINISTIC_PLANNER") && !now.isBefore(run.startedAt.plusSeconds(ProposalPolicy.MAX_ELAPSED_SECONDS)))
+            if (!run.mode.equals("DETERMINISTIC") && !now.isBefore(run.startedAt.plusSeconds(ProposalPolicy.MAX_ELAPSED_SECONDS)))
                 throw new ToolRegistry.Denied("RUN_DEADLINE_EXCEEDED");
             var issue = decode(run.input, IssueInput.class);
             var state = decode(run.context, com.fasterxml.jackson.databind.node.ObjectNode.class);
@@ -164,6 +173,13 @@ public class ExecutionService {
             throw new ToolRegistry.Denied("PLANNER_FAILURE");
         }
         event(run, step.nodeId, "PLANNER_PROPOSED", now);
+        return applyProposal(run, step, issue, state, context, settings, raw, now);
+    }
+
+    private com.fasterxml.jackson.databind.node.ObjectNode applyProposal(WorkflowRun run, NodeExecution step, IssueInput issue,
+            com.fasterxml.jackson.databind.node.ObjectNode state, ToolRegistry.Context context,
+            WorkflowDefinition.AgentSettings settings, String raw, Instant now) {
+        var allowed = Set.copyOf(settings.allowedTools());
         var decision = proposalPolicy.validate(raw, allowed, Math.min(settings.maxToolCalls(), ProposalPolicy.MAX_RUN_TOOL_CALLS - run.toolCalls), context);
         step.proposal = decision.canonicalProposal(); step.policyStatus = "APPROVED"; step.decisionCode = "APPROVED";
         event(run, step.nodeId, "PROPOSAL_APPROVED", now);
@@ -181,6 +197,82 @@ public class ExecutionService {
         return next;
     }
 
+    /** Commit the intent and reservation before any network request. Never reclaim uncertain requests. */
+    @Transactional
+    public Optional<LivePlanner.Job> claimPlanning(UUID id) {
+        var run = runs.lock(id).orElseThrow();
+        if (run.status.terminal() || !run.mode.equals("OPENAI_PLANNER") || run.status == RunStatus.PENDING) return Optional.empty();
+        var trace = steps.findByRunIdOrderByOrdinal(id);
+        var step = trace.stream().filter(s -> s.status == RunStatus.PENDING).findFirst().orElseThrow();
+        if (step.agentSettings == null) return Optional.empty();
+        var now = clock.instant();
+        if ("REQUESTED".equals(step.planningState)) {
+            if (!now.isBefore(step.planningDeadline)) failPlanning(run, step, trace, "PLANNING_OUTCOME_UNKNOWN", now);
+            return Optional.empty();
+        }
+        String denial = null;
+        if (!now.isBefore(run.startedAt.plusSeconds(ProposalPolicy.MAX_ELAPSED_SECONDS))) denial = "RUN_DEADLINE_EXCEEDED";
+        else if (!"USER".equals(users.findById(run.ownerId).orElseThrow().getRole())) denial = "TOOL_ROLE_DENIED";
+        else if (run.plannerCalls >= ProposalPolicy.MAX_PLANNER_CALLS) denial = "PLANNER_BUDGET_EXHAUSTED";
+        else if (run.reservedPlannerTokens + LivePlanner.TOKEN_RESERVATION > LivePlanner.MAX_RUN_TOKENS) denial = "PLANNER_TOKEN_LIMIT";
+        if (denial != null) { failPlanning(run, step, trace, denial, now); return Optional.empty(); }
+        var settings = decode(step.agentSettings, WorkflowDefinition.AgentSettings.class);
+        var issue = decode(run.input, IssueInput.class);
+        var state = tree(run.context);
+        var request = new Planner.Request(settings.goal(), issue.subject(), issue.body(), state.path("classification").path("category").asText(null), Set.copyOf(settings.allowedTools()));
+        step.planningIntentId = UUID.randomUUID(); step.planningRequest = encode(request);
+        step.planningDeadline = now.plusSeconds(35); step.planningState = "REQUESTED";
+        step.plannerId = "openai-" + run.plannerModel;
+        run.plannerCalls++; run.reservedPlannerTokens += LivePlanner.TOKEN_RESERVATION;
+        event(run, step.nodeId, "PLANNING_REQUESTED", now);
+        return Optional.of(new LivePlanner.Job(step.planningIntentId, run.id, step.nodeId, run.plannerModel, request, step.planningDeadline));
+    }
+
+    @Transactional
+    public void completePlanning(LivePlanner.Job job, LivePlanner.Result result, String failure) {
+        var run = runs.lock(job.runId()).orElseThrow();
+        if (run.status.terminal()) return;
+        var trace = steps.findByRunIdOrderByOrdinal(run.id);
+        var step = trace.stream().filter(s -> job.intentId().equals(s.planningIntentId)).findFirst().orElseThrow();
+        if (!"REQUESTED".equals(step.planningState) || step.status != RunStatus.PENDING) return;
+        var now = clock.instant();
+        String denial = failure;
+        if (!now.isBefore(step.planningDeadline)) denial = "PLANNING_OUTCOME_UNKNOWN";
+        else if (!now.isBefore(run.startedAt.plusSeconds(ProposalPolicy.MAX_ELAPSED_SECONDS))) denial = "RUN_DEADLINE_EXCEEDED";
+        else if (denial == null && (result == null || result.totalTokens() <= 0 || result.totalTokens() > LivePlanner.TOKEN_RESERVATION)) denial = "PLANNER_TOKEN_LIMIT";
+        if (denial != null) { failPlanning(run, step, trace, denial, now); return; }
+        run.plannerTokens += result.totalTokens();
+        step.planningState = "RESOLVED";
+        var issue = decode(run.input, IssueInput.class);
+        var state = decode(run.context, com.fasterxml.jackson.databind.node.ObjectNode.class);
+        var settings = decode(step.agentSettings, WorkflowDefinition.AgentSettings.class);
+        var context = new ToolRegistry.Context(users.findById(run.ownerId).orElseThrow().getRole(), issue.subject(), issue.body(), state.path("classification").path("category").asText(null));
+        event(run, step.nodeId, "PLANNER_PROPOSED", now);
+        try {
+            var output = encode(applyProposal(run, step, issue, state, context, settings, result.proposal(), now));
+            step.complete(run.context, output, now); run.context = output;
+            event(run, step.nodeId, "STEP_SUCCEEDED", now);
+            if (trace.stream().noneMatch(s -> s.status == RunStatus.PENDING)) {
+                run.finish(RunStatus.SUCCEEDED, now, null); event(run, null, "RUN_SUCCEEDED", now);
+            }
+        } catch (org.springframework.dao.DataAccessException | jakarta.persistence.PersistenceException exception) { throw exception; }
+        catch (RuntimeException exception) {
+            failPlanning(run, step, trace, exception instanceof ToolRegistry.Denied || exception instanceof LocalActions.StepFailure ? exception.getMessage() : "INTERNAL_STEP_ERROR", now);
+        }
+    }
+
+    private void failPlanning(WorkflowRun run, NodeExecution step, List<NodeExecution> trace, String code, Instant now) {
+        if (step.planningIntentId != null) step.planningState = "RESOLVED";
+        if (!"APPROVED".equals(step.policyStatus)) {
+            step.policyStatus = "DENIED"; step.decisionCode = code;
+            toolEvent(run, step.nodeId, "PROPOSAL_DENIED", null, code, now);
+        }
+        step.fail(run.context, code, now);
+        trace.stream().filter(s -> s.status == RunStatus.PENDING).forEach(s -> s.cancel(now));
+        run.finish(RunStatus.FAILED, now, code);
+        event(run, step.nodeId, "STEP_FAILED", now); event(run, null, "RUN_FAILED", now);
+    }
+
     private UUID owner(String username) { return users.findByUsername(username).orElseThrow(ExecutionService::notFound).getId(); }
     private static ResponseStatusException notFound() { return new ResponseStatusException(HttpStatus.NOT_FOUND, "Workflow, version or run not found"); }
     private void event(WorkflowRun run, String node, String type, Instant now) {
@@ -193,10 +285,10 @@ public class ExecutionService {
     private Details details(WorkflowRun r) {
         var trace = steps.findByRunIdOrderByOrdinal(r.id).stream().map(s -> new Step(s.nodeId, s.ordinal, s.operation,
                 s.status, s.attempts, tree(s.input), tree(s.output), s.errorCode, s.startedAt, s.finishedAt,
-                s.plannerId, tree(s.proposal), s.policyStatus, s.decisionCode)).toList();
+                s.plannerId, tree(s.proposal), s.policyStatus, s.decisionCode, s.planningState, s.planningDeadline)).toList();
         var audit = events.findByRunIdOrderBySequence(r.id).stream().map(e -> new Event(e.sequence, e.nodeId, e.eventType, e.occurredAt, e.toolName, e.decisionCode)).toList();
         return new Details(r.id, r.workflowId, r.versionId, r.versionNumber, r.mode, r.status,
-                r.createdAt, r.startedAt, r.finishedAt, r.errorCode, tree(r.input), tree(r.context), trace, audit, r.plannerCalls, r.toolCalls);
+                r.createdAt, r.startedAt, r.finishedAt, r.errorCode, tree(r.input), tree(r.context), trace, audit, r.plannerCalls, r.toolCalls, r.reservedPlannerTokens, r.plannerTokens);
     }
     private String encode(Object value) {
         try { return json.writeValueAsString(value); }

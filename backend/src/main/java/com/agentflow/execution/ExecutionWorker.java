@@ -10,11 +10,12 @@ import org.springframework.stereotype.Component;
 class ExecutionWorker {
     private static final Logger log = LoggerFactory.getLogger(ExecutionWorker.class);
     private final ExecutionService service;
-    ExecutionWorker(ExecutionService service) { this.service = service; }
+    private final PlanningCoordinator planning;
+    ExecutionWorker(ExecutionService service, PlanningCoordinator planning) { this.service = service; this.planning = planning; }
     @Scheduled(fixedDelayString = "${agentflow.execution.poll-delay-ms:1000}")
     void tick() {
         for (var id : service.runnable()) {
-            try { service.advance(id); }
+            try { planning.advance(id); }
             catch (RuntimeException failure) {
                 log.warn("Could not advance run {} ({}); checkpoint retained for next poll", id, failure.getClass().getSimpleName());
             }
