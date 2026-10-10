@@ -147,6 +147,28 @@ class WorkflowApiTest {
         return json.readTree(result.getResponse().getContentAsString()).get("id").asText();
     }
 
+    @Test void savesBoundedEditorPositionsInImmutableVersions() throws Exception {
+        var request=(com.fasterxml.jackson.databind.node.ObjectNode)json.readTree(body("Canvas layout"));
+        var node=(com.fasterxml.jackson.databind.node.ObjectNode)request.path("definition").path("nodes").get(0);
+        node.putObject("position").put("x",-125.5).put("y",800);
+        var created=mvc.perform(post("/api/workflows").with(user("alice")).with(csrf()).contentType("application/json").content(request.toString()))
+                .andExpect(status().isCreated()).andReturn();
+        String id=json.readTree(created.getResponse().getContentAsString()).path("id").asText();
+        request.put("expectedVersion",1); node.withObject("position").put("x",42);
+        mvc.perform(put("/api/workflows/"+id).with(user("alice")).with(csrf()).contentType("application/json").content(request.toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.definition.nodes[0].position.x").value(42));
+        mvc.perform(get("/api/workflows/"+id+"/versions").with(user("alice")))
+                .andExpect(jsonPath("$.items[0].definition.nodes[0].position.x").value(-125.5));
+    }
+    @Test void rejectsOutOfBoundsIncompleteAndUnknownEditorPositionFields() throws Exception {
+        for(String position:java.util.List.of("{\"x\":10001,\"y\":0}","{\"x\":0}","{\"x\":0,\"y\":0,\"ownerId\":\"injected\"}")) {
+            var request=(com.fasterxml.jackson.databind.node.ObjectNode)json.readTree(body("Invalid layout"));
+            ((com.fasterxml.jackson.databind.node.ObjectNode)request.path("definition").path("nodes").get(0)).set("position",json.readTree(position));
+            mvc.perform(post("/api/workflows").with(user("alice")).with(csrf()).contentType("application/json").content(request.toString()))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
     String body(String name) throws Exception {
         return json.writeValueAsString(Map.of("name", name, "description", "Support operations", "definition", GraphValidatorTest.valid()));
     }

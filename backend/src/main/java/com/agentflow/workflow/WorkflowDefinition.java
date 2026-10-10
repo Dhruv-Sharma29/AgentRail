@@ -11,6 +11,8 @@ public record WorkflowDefinition(
     public enum Operation { RECEIVE_INPUT, CLASSIFY_ISSUE, SEARCH_DOCUMENTATION, RECORD_RESULT }
     public enum AgentGoal { CLASSIFY_ISSUE, FIND_DOCUMENTATION }
     public record ApprovalSettings(@NotNull @Min(60) @Max(86400) Integer timeoutSeconds) {}
+    public record Position(@NotNull @DecimalMin("-10000") @DecimalMax("10000") Double x,
+            @NotNull @DecimalMin("-10000") @DecimalMax("10000") Double y) {}
     public record AgentSettings(@NotNull AgentGoal goal,
             @NotNull @Size(min = 1, max = 2) List<@NotBlank @Pattern(regexp = "[a-z_]{1,64}") String> allowedTools,
             @NotNull @Min(1) @Max(3) Integer maxToolCalls) {}
@@ -21,10 +23,12 @@ public record WorkflowDefinition(
             @NotBlank @Size(max = 120) String label,
             Operation operation,
             @Valid AgentSettings agent,
-            @Valid ApprovalSettings approval) {
-        public Node(String id, NodeType type, String label) { this(id, type, label, null, null, null); }
-        public Node(String id, NodeType type, String label, Operation operation) { this(id, type, label, operation, null, null); }
-        public Node(String id, NodeType type, String label, Operation operation, AgentSettings agent) { this(id,type,label,operation,agent,null); }
+            @Valid ApprovalSettings approval,
+            @Valid Position position) {
+        public Node(String id, NodeType type, String label) { this(id, type, label, null, null, null, null); }
+        public Node(String id, NodeType type, String label, Operation operation) { this(id, type, label, operation, null, null, null); }
+        public Node(String id, NodeType type, String label, Operation operation, AgentSettings agent) { this(id,type,label,operation,agent,null,null); }
+        public Node(String id, NodeType type, String label, Operation operation, AgentSettings agent, ApprovalSettings approval) { this(id,type,label,operation,agent,approval,null); }
     }
 
     public record Edge(@NotBlank String source, @NotBlank String target) {}
