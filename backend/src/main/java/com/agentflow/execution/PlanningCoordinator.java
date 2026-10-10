@@ -24,7 +24,8 @@ public class PlanningCoordinator {
             var planner = planners.getIfAvailable();
             if (planner == null) failure = "PLANNER_UNAVAILABLE";
             else result = planner.propose(job);
-        } catch (RuntimeException exception) { failure = "PLANNER_FAILURE"; }
+        } catch (LivePlanner.Failure exception) { failure = exception.getMessage(); }
+        catch (RuntimeException exception) { failure = "PLANNER_FAILURE"; }
         executions.completePlanning(job, result, failure);
     }
 }

@@ -25,7 +25,7 @@ public class LocalActions {
                 var classification = next.putObject("classification");
                 classification.put("category", category);
                 classification.put("priority", text.contains("urgent") || text.contains("outage") ? "HIGH" : "NORMAL");
-                classification.put("explanation", "Matched local keyword rules; no model was called.");
+                classification.put("explanation", "Matched local keyword rules; this classification tool does not call a model.");
             }
             case SEARCH_DOCUMENTATION -> {
                 require(next.has("classification"), "MISSING_CLASSIFICATION");

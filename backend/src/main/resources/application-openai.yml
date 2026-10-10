@@ -1,0 +1,7 @@
+# Run from backend with profiles dev,openai. The repository env file stays ignored.
+spring:
+  config:
+    import: "optional:file:../.env.local[.properties]"
+agentflow:
+  planner:
+    provider: openai

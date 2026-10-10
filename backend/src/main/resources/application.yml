@@ -35,6 +35,12 @@ management:
     health:
       show-details: never
 agentflow:
+  planner:
+    provider: ${AGENTFLOW_PLANNER_PROVIDER:deterministic}
+    model: ${AGENTFLOW_PLANNER_MODEL:gpt-4.1-mini-2025-04-14}
   bootstrap:
     username: ${BOOTSTRAP_USERNAME}
     password: ${BOOTSTRAP_PASSWORD}
+logging:
+  level:
+    org.springframework.ai.openai: "OFF"
