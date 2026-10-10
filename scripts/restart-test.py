@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Verify process restart recovery with an isolated PostgreSQL container and API port."""
 import importlib.util
+import argparse
 import json
 import os
 from pathlib import Path
@@ -36,6 +37,9 @@ def wait_ready(process, base, log):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--agent", action="store_true", help="Verify agent proposal and budget recovery")
+    args = parser.parse_args()
     jar = ROOT / "backend/target/agentflow-0.1.0-SNAPSHOT.jar"
     if not jar.is_file():
         raise RuntimeError("Build the executable jar first: cd backend && ./mvnw package")
@@ -70,10 +74,13 @@ def main():
                 process = subprocess.Popen(command, env=env, cwd=directory, stdout=output, stderr=subprocess.STDOUT)
                 wait_ready(process, base, log)
                 api = demo.Api(base, "restart-check", "restart-check-only-password")
-                run = api.start_demo("Cannot log in", "Password reset failed")
-                checkpoint = api.wait(run["id"], lambda r: r["status"] == "RUNNING" and r["steps"][0]["status"] == "SUCCEEDED")
-                if checkpoint["steps"][1]["status"] != "PENDING":
-                    raise RuntimeError("Missed the first checkpoint; rerun the check")
+                run = api.start_demo("Cannot log in", "Password reset failed", args.agent)
+                completed = 1 if args.agent else 0
+                checkpoint = api.wait(run["id"], lambda r: r["status"] == "RUNNING" and r["steps"][completed]["status"] == "SUCCEEDED")
+                if checkpoint["steps"][completed + 1]["status"] != "PENDING":
+                    raise RuntimeError("Missed the checkpoint; rerun the check")
+                if args.agent and (checkpoint["plannerCalls"] != 1 or checkpoint["toolCalls"] != 1):
+                    raise RuntimeError("First agent checkpoint did not preserve its usage")
                 process.kill()  # Only the test-owned child process; intentionally no graceful shutdown.
                 process.wait(timeout=10)
                 process = subprocess.Popen(command, env=env, cwd=directory, stdout=output, stderr=subprocess.STDOUT)
@@ -82,8 +89,11 @@ def main():
                 recovered = api.wait(run["id"], lambda r: r["status"] in {"SUCCEEDED", "FAILED", "CANCELLED"})
                 if recovered["status"] != "SUCCEEDED" or any(step["attempts"] != 1 for step in recovered["steps"]):
                     raise RuntimeError("Restart lost or repeated a checkpoint")
-                if len(recovered["events"]) != 7:
+                if len(recovered["events"]) != (13 if args.agent else 7):
                     raise RuntimeError("Restart duplicated or lost audit events")
+                if args.agent and (recovered["plannerCalls"] != 2 or recovered["toolCalls"] != 2
+                                   or any(step["policyStatus"] != "APPROVED" or not step["proposal"] for step in recovered["steps"][1:3])):
+                    raise RuntimeError("Restart lost planner usage or approved proposals")
                 print("PASS: PostgreSQL checkpoint survived SIGKILL; fresh Java process resumed all remaining steps once")
         except Exception:
             if log.exists():

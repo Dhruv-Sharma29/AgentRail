@@ -30,3 +30,12 @@ The first increment ends at workflow management. It does not claim to execute to
 5. Verify the same contracts against PostgreSQL and abrupt Java process restart; add executable demo and restart scripts, CI and runtime documentation.
 
 This slice records a local support result. Remote ticket creation, live classification, approval pauses and retries belong to later phases. Phase 3 introduces proposal validation against a Java tool registry before adding a provider.
+
+## Phase 3 slices
+
+1. Registered tools and proposal policy: strict envelope/argument validation, workflow allowlist, server role/context checks, response and batch bounds; code-controlled read-only catalog.
+2. Durable agent steps: immutable goal/allowlist/budget settings, deterministic proposal adapter, persisted accepted proposals/denials, usage and tool audit outcomes; atomic rollback and cancellation.
+3. Run budgets and recovery: planner/tool/elapsed limits, role revocation and competing-worker tests, PostgreSQL verification, process restart after an approved proposal, runnable agent demo.
+4. Live provider integration: resolve credentials before provider work, verify official Spring AI/provider contracts, persist planning intents and results outside run locks, enforce token/deadline budgets, and keep paid tests opt-in.
+
+Slices 1–3 implement the deterministic proposal boundary. Slice 4 remains pending live-provider configuration. Human approvals and external ticket effects remain Phase 4.

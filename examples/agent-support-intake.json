@@ -1,0 +1,21 @@
+{
+  "name": "Agent support intake",
+  "description": "A deterministic planner proposes read-only tools; Java validates and controls every call.",
+  "definition": {
+    "nodes": [
+      {"id": "receive", "type": "TRIGGER", "label": "Receive issue"},
+      {"id": "classify", "type": "AI_STEP", "label": "Propose classification", "agent": {
+        "goal": "CLASSIFY_ISSUE", "allowedTools": ["classify_issue"], "maxToolCalls": 1
+      }},
+      {"id": "search", "type": "AI_STEP", "label": "Propose documentation lookup", "agent": {
+        "goal": "FIND_DOCUMENTATION", "allowedTools": ["search_documentation"], "maxToolCalls": 1
+      }},
+      {"id": "record", "type": "ACTION", "label": "Record result", "operation": "RECORD_RESULT"}
+    ],
+    "edges": [
+      {"source": "receive", "target": "classify"},
+      {"source": "classify", "target": "search"},
+      {"source": "search", "target": "record"}
+    ]
+  }
+}

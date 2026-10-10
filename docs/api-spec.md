@@ -68,12 +68,39 @@ Start body:
 
 `versionNumber` is required and positive. `idempotencyKey` is required and matches `[a-zA-Z0-9_-]{1,100}`. Subject and body are nonblank, limited to 200 and 4,000 characters respectively. Unknown input fields fail validation. Keys are scoped to the authenticated owner and workflow and permanently bound to the requested version and exact input. Replaying the same request returns the same run with 202, including after completion or archive. Changed input or version returns 409. A new run of an archived workflow returns 409; missing/unowned workflow, version, or run returns 404.
 
-Execution requires a single chain of TRIGGER/ACTION nodes. The trigger receives input and can omit its operation or specify `RECEIVE_INPUT`. Every action must explicitly specify one of the other three operations; labels do not select behavior. Unsupported AI, approval, condition, branching, and missing action operations return 400 before run creation. See [the executable example](../examples/support-intake.json).
+Execution requires a single chain of TRIGGER/ACTION/configured AI_STEP nodes. The trigger receives input and can omit its operation or specify `RECEIVE_INPUT`. Every action must explicitly specify one of the other three operations; labels do not select behavior. Approval, condition, branching, and unconfigured action/agent nodes return 400 before run creation. See [the action example](../examples/support-intake.json) and [the agent example](../examples/agent-support-intake.json).
 
-Details contain `id`, `workflowId`, `versionId`, `versionNumber`, `mode: "DETERMINISTIC"`, `status`, lifecycle timestamps, `errorCode`, submitted `input`, the current `context`, ordered `steps`, and `events`. Each step contains node ID, ordinal, operation, status, attempts, input/output, timestamps and safe error code. The trigger's input is the submitted issue; later steps receive the previous checkpoint. Outputs are full checkpoint snapshots. Audit events have sequence, node ID, event type and UTC timestamp; they contain no issue text or credentials.
+Details contain `id`, `workflowId`, `versionId`, `versionNumber`, `mode` (DETERMINISTIC or DETERMINISTIC_PLANNER), `status`, lifecycle timestamps, `errorCode`, submitted `input`, current `context`, ordered `steps`, `events`, `plannerCalls` and `toolCalls`. Each step contains node ID, ordinal, operation, status, attempts, input/output, timestamps, safe error code and nullable planner/proposal/policy metadata. The trigger's input is the submitted issue; later steps receive the previous checkpoint. Outputs are full checkpoint snapshots. Audit events have sequence, node ID, event type, UTC timestamp, and optional tool name/decision code; they contain no issue text or credentials.
 
 Runs transition `PENDING → RUNNING → SUCCEEDED/FAILED`, or `PENDING/RUNNING → CANCELLED`. Each step is atomically recorded as SUCCEEDED or FAILED; unexecuted steps remain PENDING or become CANCELLED. Cancellation preserves completed steps and prevents future ones. Repeated cancellation is idempotent; cancellation of a succeeded/failed run returns 409. A short local action already holding the run lock finishes before cancellation can acquire that lock.
 
 Missing prerequisite context terminates the run with codes such as `MISSING_CLASSIFICATION` or `MISSING_SUPPORT_CONTEXT`; subsequent steps are cancelled without attempts. Unexpected handler errors use `INTERNAL_STEP_ERROR`, without exception details. These failures are not automatically retried. A worker rediscovers PENDING/RUNNING runs after restart and continues from the first pending step. No public advance/resume endpoint exists.
 
 Worker configuration: `agentflow.execution.worker-enabled` (default true), `agentflow.execution.poll-delay-ms` (default 1000). Tests disable scheduling and control transaction boundaries explicitly. The worker processes at most 20 runnable IDs per poll and one bounded local step per run.
+
+## Agent steps and tools
+
+An agent node omits `operation` and supplies these settings:
+
+```json
+{
+  "id": "classify", "type": "AI_STEP", "label": "Propose classification",
+  "agent": {"goal": "CLASSIFY_ISSUE", "allowedTools": ["classify_issue"], "maxToolCalls": 1}
+}
+```
+
+Goals are CLASSIFY_ISSUE or FIND_DOCUMENTATION. The allowlist contains one or two distinct registered names, and maxToolCalls is 1–3. Registration and executable semantics are checked again at run start. Agent settings cannot be attached to trigger/action nodes, and approval/condition nodes are unsupported. Existing saved definitions remain readable with null agent settings.
+
+`GET /api/tools` requires authentication and returns two code-controlled definitions containing name, description, READ_ONLY risk, allowed USER role, and argumentSchema. There is no registration/update endpoint. Arguments are exact JSON objects: classify_issue requires nonblank subject (max 200) and body (max 4000), matching the submitted issue; search_documentation requires category ACCOUNT/BILLING/GENERAL matching the current classification. Additional fields, owner IDs, URLs, roles, approval flags and changed issue context are denied.
+
+The planner returns this envelope; it never supplies permissions or execution settings:
+
+```json
+{"toolCalls":[{"tool":"classify_issue","arguments":{"subject":"Cannot log in","body":"Password reset failed"}}]}
+```
+
+Java validates the whole batch before execution and revalidates frozen arguments before dispatch. Strict parsing rejects unknown fields, duplicate JSON keys and trailing content. A successful agent step exposes plannerId, canonical proposal, policyStatus APPROVED, and decisionCode APPROVED. A denied step exposes policyStatus DENIED and a safe code, with null proposal; malformed/denied raw output is not stored. Java policy approval does not represent a human approval.
+
+Limits are five planner calls and ten tool calls per run, one proposal per agent step, at most three tool calls per proposal (subject to the configured step budget), a 16 KiB UTF-8 proposal cap, and 120 seconds from RUNNING for agent runs. The worker checks elapsed budget before every step, including final actions. Current handlers are bounded local functions; these limits do not interrupt a remote request or account for tokens because no live provider exists.
+
+Safe failure codes include INVALID_PROPOSAL, PROPOSAL_TOO_LARGE, UNKNOWN_TOOL, TOOL_NOT_ALLOWED, INVALID_TOOL_ARGUMENTS, TOOL_CONTEXT_MISMATCH, TOOL_ROLE_DENIED, TOOL_BUDGET_EXHAUSTED, PLANNER_BUDGET_EXHAUSTED, RUN_DEADLINE_EXCEEDED and PLANNER_FAILURE. Failures terminate the run and cancel later steps. The persisted usage counts are committed local attempts; transaction rollback restores the previous usage/checkpoint. Planner failures expose no provider exception text.
