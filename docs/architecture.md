@@ -7,11 +7,11 @@
 | auth | Persisted users, BCrypt passwords, session login, logout, CSRF | Spring Security establishes the principal; requests cannot select ownership |
 | workflow | DAG validation, owner-scoped CRUD, immutable version history | Controllers pass the principal to transactional services; repositories scope object queries to owner |
 | execution | Run lifecycle, local actions, durable checkpoints, cancellation, audit events | Run creation validates a saved version; the worker serializes transitions on a run row |
-| agent | Deterministic proposals and strict proposal policy | The planner receives bounded issue/context data and returns JSON; it cannot execute tools |
+| agent | Deterministic and opt-in Spring AI/OpenAI proposals, strict proposal policy | The planner receives bounded issue/context data and returns JSON; it cannot execute tools |
 | tools | Code-controlled read-only tool registry, roles, schemas and context validation | Java validates names and typed arguments; workflow/model data cannot register capabilities |
 | common | Safe controller error responses | Malformed requests are 400, missing/unowned resources 404, stale writes 409 |
 
-Approval and live-provider modules are planned. Execution owns the initial audit records; a general audit module will expand to authentication and administration events later.
+Human approvals are planned. Execution owns the initial audit records; a general audit module will expand to authentication and administration events later.
 
 ## Versioning and transactions
 
@@ -43,16 +43,24 @@ V2/V3 preserve existing workflow and run records. V3 adds run mode/usage, option
 
 ## Planner and tool boundary
 
-An AI_STEP freezes a goal, workflow tool allowlist and per-step tool budget in its version and execution plan. The only planner implementation is local and deterministic. It returns an untrusted JSON proposal, with no principal, executor, approval handle or credential in its request.
+An AI_STEP freezes a goal, workflow tool allowlist and per-step tool budget in its version and execution plan. The default planner is local and deterministic. Live mode uses Spring AI 1.1.8 with automatic tool execution disabled and definition-only callbacks that cannot dispatch tools. Both return an untrusted JSON proposal, with no principal, executor, approval handle or credential in the planning request.
 
 ProposalPolicy rejects oversized/malformed output, duplicate keys, trailing JSON and unknown fields. It validates the complete batch before any handler runs. ToolRegistry then checks registration, workflow permissions, strict typed arguments, current persisted role and server-derived issue/category context. Accepted arguments are serialized into immutable strings and revalidated before dispatch to their registered local operation. Rejected raw proposals are discarded; the trace retains a safe denial code. Code owns the two tool definitions; catalog persistence and administrative registration are future work.
 
-Runs containing agent steps have limits of five committed planner calls, ten local tool calls, three calls per proposal (also constrained by the step budget), 16 KiB per proposal, and 120 seconds from RUNNING. The worker checks elapsed budget before each step. Counters, approved proposals and tool checkpoints survive process restart and roll back together on transaction abort. These limits do not imply live-provider token accounting or interruption of remote calls; no provider or remote tool exists in this slice.
+Runs containing agent steps have limits of five planner calls, ten local tool calls, three calls per proposal (also constrained by the step budget), 16 KiB per proposal, and 120 seconds from RUNNING. The worker checks elapsed budget before each step. Deterministic counters, approved proposals and tool checkpoints survive process restart and roll back together on transaction abort. Live usage uses separate intent reservations and result accounting, described below.
 
 Policy APPROVED means Java validation passed; it is not human approval. Only local read-only tools can be proposed. Approval nodes still fail closed. Model/provider failures are tested through controlled planner faults and return PLANNER_FAILURE without internal details.
 
-## Runtime extension
+## Live request and result stages
 
-The next slice adds a credential-configured live provider and token/provider deadlines. The current pure planner must not simply be replaced by a network-calling bean under the run lock: remote planning needs persisted intent/result stages outside the transaction, followed by Java revalidation. Sensitive effects then require a durable human approval bound to the exact proposal. Remote tools need their own idempotency and reconciliation for uncertain outcomes.
+V4 adds planning intent UUID, frozen request, planning state and deadline to the existing step, plus immutable run model identity and token accounting. Claiming an eligible agent step commits REQUESTED and one call/18,000-token reservation under the run lock. A competing worker cannot claim it again. Dispatch occurs outside transactions; the result transaction verifies the unresolved intent, cancellation, deadlines, reported usage and current owner role before applying the same Java proposal policy. The accepted result, local tool checkpoint, actual reported token usage and audit events commit atomically. Duplicate results are ignored.
 
-Live providers, external tools, approval decisions, branching semantics, and action retries remain future work. Persisting AI/action node labels has no side effect.
+The intent expires after at most 35 seconds, capped at the run's deadline. The adapter allows at most 30 seconds, uses HTTP connection/read timeouts, refuses redirects, caps input at 15,000 UTF-8 bytes, output at 1,024 completion tokens and HTTP response at 64 KiB. Each run reserves at most 90,000 tokens. The reservation is a conservative application cap, not a provider tokenizer or billing guarantee. Returned token usage is bounded by the reservation. The scheduled worker is serial, so a slow provider request can delay other runs; cancellation uses an independent HTTP transaction.
+
+Cancellation marks an in-flight intent ABANDONED. Late results cannot authorize tools. A crash or result-transaction rollback leaves REQUESTED; a fresh worker fails it with PLANNING_OUTCOME_UNKNOWN after expiry, without reissuing a potentially billed request. Reservations are not refunded on uncertain outcomes, cancellation or provider rejection. Reported token totals include accepted result transactions; they are not a billing ledger. Provider retries and recursive tool/model loops are disabled. Bounded error parsing preserves only allowlisted failure categories; rejected body text and prompts are not logged by the OpenAI model logger.
+
+Changing provider configuration affects new runs. Existing deterministic runs retain their mode. Pending live runs need the live provider configured; otherwise they fail with PLANNER_UNAVAILABLE. The run freezes the requested model. Credentials remain process configuration, never run data. The `openai` profile reads the ignored repository credential file when launched from backend; default mode does not require an API key.
+
+Sensitive effects still require a durable human approval bound to the exact proposal. Remote tools need their own idempotency and reconciliation for uncertain outcomes.
+
+External tools, approval decisions, branching semantics, and action retries remain future work. Persisting AI/action node labels has no side effect. The live provider success path is tested offline with mocked HTTP responses; the local live request encountered HTTP 429, so successful live completion is not claimed.

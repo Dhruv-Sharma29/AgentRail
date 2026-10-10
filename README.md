@@ -2,7 +2,7 @@
 
 A workflow platform where AI proposes actions and a Java backend validates, authorizes, and controls execution.
 
-AgentFlow implements authenticated workflow management, durable execution, and a Java-controlled planner/tool boundary: Java 21, Spring Boot 3.5.16, JPA, Flyway, session authentication with CSRF, owner-scoped APIs, immutable versions, run checkpoints, cancellation, tool validation, and execution audits. Human approvals, retries, live model integration, and the React Flow frontend are subsequent increments.
+AgentFlow implements authenticated workflow management, durable execution, and a Java-controlled planner/tool boundary: Java 21, Spring Boot 3.5.16, Spring AI 1.1.8, JPA, Flyway, session authentication with CSRF, owner-scoped APIs, immutable versions, run checkpoints, cancellation, tool validation, and execution audits. Live OpenAI planning is opt-in. Human approvals, retries, and the React Flow frontend are subsequent increments.
 
 ## Run locally
 
@@ -51,7 +51,23 @@ python3 scripts/execution-demo.py --agent
 
 This saves [examples/agent-support-intake.json](examples/agent-support-intake.json). Agent steps propose classification and documentation tools; Java validates the complete proposal, workflow allowlist, strict arguments, persisted user role, issue context and budgets before running a local handler. The trace prints planner identity, proposed tools, Java policy decisions and usage. A successful run records two planner calls, two tool calls and thirteen audit events.
 
-The mode is `DETERMINISTIC_PLANNER`: no live model is called. The registered tools are read-only local capabilities. `GET /api/tools` exposes their metadata to authenticated users; there is no tool-registration API. The next live-provider slice requires credential configuration and orchestration outside database locks.
+The default mode is `DETERMINISTIC_PLANNER`: no live model is called. The registered tools are read-only local capabilities. `GET /api/tools` exposes their metadata to authenticated users; there is no tool-registration API.
+
+## Opt in to live planning
+
+After secure credential setup, the ignored repository `.env.local` contains OPENAI_API_KEY. Stop the existing server, then run from `backend`:
+
+```sh
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev,openai
+```
+
+Use `python3 scripts/execution-demo.py --agent` in another terminal from the repository root. New agent runs report OPENAI_PLANNER. The model proposes existing tools; classification itself remains a local rule-based tool. A successful four-step live run has two planner calls, two tool calls and fifteen audit events, plus reported and reserved token counts.
+
+The OpenAI profile loads `../.env.local` as properties; production may inject OPENAI_API_KEY and AGENTFLOW_PLANNER_PROVIDER=openai through its secret/environment system. Do not commit credentials. The default model is gpt-4.1-mini-2025-04-14; the adapter also accepts gpt-4.1-mini. The current provider endpoint is fixed to api.openai.com.
+
+Each call persists a planning intent before dispatch outside database transactions. Java rejects cancelled, expired, malformed or unauthorized results before tools execute. Input, responses, output tokens and elapsed time are bounded. Automatic retries are disabled; unknown outcomes fail after the intent deadline instead of resending. Reservations remain consumed on failure/cancellation, and are conservative limits rather than billed-token measurements.
+
+The local live smoke request returned HTTP 429 and safely executed zero tools. Its precise rate-limit/quota cause was not captured by the original handler; successful live completion remains unverified. Current code distinguishes PLANNER_RATE_LIMIT, PLANNER_QUOTA and ambiguous PLANNER_ACCESS_LIMIT using allowlisted provider codes. Resolve the reported limit before starting another live run; offline deterministic mode remains available.
 
 ## Test and build
 

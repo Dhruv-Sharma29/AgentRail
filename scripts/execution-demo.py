@@ -71,7 +71,7 @@ def main():
               os.environ.get("AGENTFLOW_SMOKE_PASSWORD", "demo-local-only"))
     run = api.start_demo(args.subject, args.body, args.agent)
     print(f"Started run {run['id']} in {run['mode']} mode", flush=True)
-    run = api.wait(run["id"], lambda r: r["status"] in {"SUCCEEDED", "FAILED", "CANCELLED"})
+    run = api.wait(run["id"], lambda r: r["status"] in {"SUCCEEDED", "FAILED", "CANCELLED"}, timeout=150)
     if run["status"] != "SUCCEEDED":
         raise RuntimeError(f"Run ended {run['status']}: {run['errorCode']}")
     print(" → ".join(f"{step['nodeId']}: {step['status']}" for step in run["steps"]))
@@ -81,6 +81,8 @@ def main():
             print(f"{step['nodeId']}: {step['plannerId']} proposed {tools}; Java policy {step['policyStatus']}")
     if args.agent:
         print(f"Usage: {run['plannerCalls']} planner calls, {run['toolCalls']} tool calls")
+        if run["mode"] == "OPENAI_PLANNER":
+            print(f"Tokens: {run['plannerTokens']} reported, {run['reservedPlannerTokens']} reserved")
     print(json.dumps(run["context"]["result"], indent=2))
     print(f"PASS: duplicate start reused the run; {len(run['events'])} audit events persisted")
     print(f"Trace: {args.base_url}/api/runs/{run['id']} (authenticated session required)")

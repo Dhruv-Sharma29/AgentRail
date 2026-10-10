@@ -38,4 +38,4 @@ This slice records a local support result. Remote ticket creation, live classifi
 3. Run budgets and recovery: planner/tool/elapsed limits, role revocation and competing-worker tests, PostgreSQL verification, process restart after an approved proposal, runnable agent demo.
 4. Live provider integration: resolve credentials before provider work, verify official Spring AI/provider contracts, persist planning intents and results outside run locks, enforce token/deadline budgets, and keep paid tests opt-in.
 
-Slices 1–3 implement the deterministic proposal boundary. Slice 4 remains pending live-provider configuration. Human approvals and external ticket effects remain Phase 4.
+Slices 1–3 implement the deterministic proposal boundary. Slice 4 implements opt-in Spring AI/OpenAI planning with durable request/result stages, usage reservations, deadlines and fail-closed recovery. Offline and PostgreSQL contracts pass; the live smoke request encountered HTTP 429, leaving successful live completion pending provider limit resolution. Human approvals and external ticket effects remain Phase 4.
