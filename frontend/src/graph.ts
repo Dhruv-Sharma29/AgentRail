@@ -76,7 +76,7 @@ export function toCanvas(definition: Definition): {
       id: `${edge.source}-${edge.target}`,
       source: edge.source,
       target: edge.target,
-      type: "smoothstep",
+      type: "default",
     })),
   };
 }

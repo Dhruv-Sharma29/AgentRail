@@ -43,7 +43,9 @@ Vite proxies `/api` and `/actuator` to the loopback backend on 8080. Session coo
 
 The sign-in page includes an animated support-workflow preview with pause/play controls and a static reduced-motion mode. It is an illustration; it does not start workflows, decide approvals, or display live usage. The reusable component is `frontend/src/components/ui/ai-agent-pipeline.tsx`, imported with `@/components/ui/ai-agent-pipeline`. The `@` alias maps to `frontend/src` in both Vite and TypeScript. Shared styles are in `frontend/src/styles.css`; Tailwind 4 and TypeScript are already configured.
 
-Reusable UI components belong in `frontend/src/components/ui`, matching the shadcn directory convention without moving the existing workspace modules. This SVG component needs Framer Motion but no shadcn primitives or remote images. To install shadcn primitives later, run `npx shadcn@latest init` from `frontend`, select Vite, use the existing stylesheet and `@` aliases, then review the generated theme/configuration before adding components. See the [shadcn Vite setup](https://ui.shadcn.com/docs/installation/vite).
+Reusable UI components belong in `frontend/src/components/ui`. The real workflow editor uses `n8n-workflow-block-shadcnui.tsx`: typed node cards, curved connections, a keyboard-accessible Add node menu and counts from the saved draft. React Flow owns the drag/connection behavior; the parent editor persists positions and validates the graph. Only supported AgentFlow steps appear in the menu. Execution and approval decisions remain controlled by Java.
+
+`frontend/components.json` configures shadcn for Tailwind 4, the existing stylesheet and `@` aliases. Badge, Button, Card and Dropdown Menu were installed with the official shadcn 4.21.4 CLI; semantic colors match the forest/cream theme. To preview another primitive, run `npx shadcn@latest add <component> --dry-run` from `frontend`, then review its files, dependencies and theme changes before installing it. The builder is loaded separately from the initial page bundle. See the [shadcn Vite setup](https://ui.shadcn.com/docs/installation/vite).
 
 ## Run the first workflow
 

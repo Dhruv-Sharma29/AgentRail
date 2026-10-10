@@ -105,3 +105,18 @@ Acceptance checks on 10 October 2026:
 - Framer Motion 14.1.0 is pinned with the lockfile; its dependency tree reports zero known npm vulnerabilities. The pipeline is loaded separately (about 30 kB gzip) so the main bundle remains about 142 kB gzip. Component-directory and alias setup is documented in README.
 
 Review checked honest preview copy, linear authorization boundaries, reduced-motion changes, cleanup, literal React rendering, responsive layout and lazy loading. Authentication, Java execution policy, API transport and security headers are unchanged. The user's untracked `designs/` files are left untouched.
+
+
+## Workflow builder component integration
+
+The supplied n8n-style workflow block is integrated into the real editor using controlled React Flow nodes and edges. The forest/cream theme now includes shadcn semantic tokens and official Badge, Button, Card and Dropdown Menu primitives. Node kinds have distinct tints, curved dashed connectors and actual connection counts. Draft, saved and read-only labels reflect the editor state. The menu offers only supported AgentFlow node types; graph validation and Java execution control remain authoritative.
+
+Acceptance checks on 10 October 2026:
+
+- The new browser case failed before integration. It now proves keyboard node addition, duplicate-trigger blocking, real draft counts, rejection of an unconnected graph, persisted drag coordinates across an immutable version save and reload, and Escape restoring menu-button focus.
+- Visual inspection exposed legacy button padding collapsing the canvas control icons to zero width. A regression assertion failed before scoped control sizing restored the icons. Mobile/reduced-motion testing then exposed state-specific menu animation taking precedence over the initial motion preference utility; the corrected utility disables animation, with a computed-style assertion.
+- The 390 × 844 menu stays within the viewport and the page has no horizontal overflow. Desktop and mobile layouts were inspected; screenshots are retained under ignored `artifacts/` and browser test outputs. Native inspection opened an existing workflow without changing its definition or starting a run.
+- Formatting, nine unit tests, TypeScript/Vite compilation and all nine Chromium cases pass. All nine also pass against the final compiled container and disposable PostgreSQL deployment, including authentication, CSRF, frozen approvals, replacement recovery, backup restore and duplicate-action checks. Tests use synthetic approvals and deterministic planning; no paid model calls or real approval decisions occur.
+- UI dependencies are pinned in the lockfile and use official npm registry URLs. Existing package versions/destinations did not change. The added packages use MIT or Apache-2.0 licenses; `npm audit` reports zero known vulnerabilities. The builder loads separately (about 43 kB gzip), leaving the initial JavaScript bundle about 142 kB gzip.
+
+Review covered controlled state and persistence, immutable-version compatibility, supported menu choices, node limits, duplicate triggers, saved/archived editing restrictions, literal rendering of user labels, keyboard focus, responsive menus and reduced motion. The former Canvas component and its unused CSS were removed. Authentication transport, Java policy and CSP remain unchanged. Graph coverage was checked for every relied-on project source; the flagged Tailwind custom-variant line was read directly, and lockfile changes were inspected from source. Coverage is best effort. The user's untracked `designs/` files remain untouched.

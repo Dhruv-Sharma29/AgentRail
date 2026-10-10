@@ -322,7 +322,7 @@ test("a save in progress cannot silently overwrite further editor changes", asyn
     await expect(page.getByLabel("Workflow name")).toBeDisabled();
     await expect(page.getByLabel("Step label", { exact: true })).toBeDisabled();
     await expect(
-      page.getByRole("button", { name: "Action", exact: true }),
+      page.getByRole("button", { name: "Add node", exact: true }),
     ).toBeDisabled();
   } finally {
     release();

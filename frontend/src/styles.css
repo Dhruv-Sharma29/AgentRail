@@ -1,6 +1,46 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 @import "@xyflow/react/dist/style.css";
+@custom-variant dark (&:where(.dark, .dark *));
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
 :root {
+  --background: #f7f8f5;
+  --foreground: #25342d;
+  --card: #ffffff;
+  --card-foreground: #25342d;
+  --popover: #ffffff;
+  --popover-foreground: #25342d;
+  --primary: #324c34;
+  --primary-foreground: #ffffff;
+  --secondary: #edf2e6;
+  --secondary-foreground: #324c34;
+  --muted: #f0f4ec;
+  --muted-foreground: #657160;
+  --accent: #edf2e6;
+  --accent-foreground: #324c34;
+  --destructive: #b34f35;
+  --border: #dce2db;
+  --input: #dce2db;
+  --ring: #7fa855;
   font-family:
     Inter,
     -apple-system,
@@ -19,7 +59,7 @@
 body {
   margin: 0;
 }
-button,
+button:not([data-slot="button"]),
 input,
 textarea,
 select {
@@ -27,6 +67,8 @@ select {
 }
 button {
   cursor: pointer;
+}
+button:not([data-slot="button"]) {
   border: 1px solid #dce2db;
   background: #fff;
   border-radius: 8px;
@@ -40,10 +82,10 @@ button {
     background 0.15s,
     box-shadow 0.15s;
 }
-button:hover:not(:disabled) {
+button:not([data-slot="button"]):hover:not(:disabled) {
   background: #f0f4ec;
 }
-button:disabled {
+button:not([data-slot="button"]):disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
@@ -800,107 +842,19 @@ form .fields {
   overflow: hidden;
   background: white;
 }
-.canvas-area {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  background: #f7faf2;
-}
-.canvas-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  border-bottom: 1px solid #e3e8da;
-  background: #fafcf7;
-  padding: 12px;
-}
-.canvas-toolbar > span {
-  font-size: 8px;
-  letter-spacing: 1px;
-  color: #8a9a7b;
-  margin-right: 4px;
-}
-.canvas-toolbar button {
-  font-size: 9px;
-  padding: 6px 9px;
-  background: white;
-}
 .canvas {
   height: 465px;
   min-width: 0;
 }
-.canvas-caption {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 14px;
-  border-top: 1px solid #e3e8da;
-  color: #8e9d7f;
-  font-size: 8px;
-  gap: 10px;
+.workflow-block .react-flow {
+  --xy-edge-stroke-default: #819477;
+  --xy-edge-stroke-width-default: 1.8;
+  --xy-edge-stroke-selected-default: #345124;
 }
-.canvas-caption > span:first-child {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
+.workflow-block .react-flow__edge-path {
+  stroke-dasharray: 6 5;
 }
-.canvas-caption > span:last-child {
-  text-align: right;
-}
-.canvas-card {
-  width: 190px;
-  background: #fff;
-  border: 1px solid #d9e2d0;
-  border-radius: 11px;
-  box-shadow: 0 3px 10px #3e572b09;
-  padding: 14px 16px;
-  min-height: 106px;
-}
-.canvas-card.selected {
-  outline: 2px solid #859f61;
-  outline-offset: 3px;
-}
-.node-kind {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 8px;
-  letter-spacing: 0.6px;
-  color: #83966c;
-  margin-bottom: 15px;
-  font-weight: 650;
-}
-.node-dot {
-  width: 4px;
-  height: 4px;
-  background: #b2c49a;
-  border-radius: 50%;
-  margin-left: auto;
-}
-.canvas-card strong {
-  display: block;
-  font-size: 13px;
-  color: #344930;
-  font-weight: 600;
-  margin-bottom: 6px;
-  overflow-wrap: anywhere;
-}
-.node-detail {
-  font-size: 9px;
-  color: #93a087;
-}
-.canvas-card.ai_step .node-kind {
-  color: #8b79a6;
-}
-.canvas-card.approval .node-kind {
-  color: #ba9658;
-}
-.canvas-card.trigger .node-kind {
-  color: #729986;
-}
-.canvas-card .react-flow__handle {
+.workflow-node .react-flow__handle {
   width: 7px;
   height: 7px;
   background: #b0c195;
@@ -916,6 +870,15 @@ form .fields {
 .react-flow__controls button {
   border: 0;
   background: #fff;
+  padding: 4px;
+  border-radius: 0;
+  width: 26px;
+  height: 26px;
+}
+.react-flow__controls button svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
 }
 .react-flow__minimap {
   border: 1px solid #e4ebdb;
@@ -1539,9 +1502,6 @@ td button {
   }
   .editor-actions {
     margin-left: auto;
-  }
-  .canvas-caption > span:last-child {
-    display: none;
   }
   .approval-layout {
     grid-template-columns: 1fr;

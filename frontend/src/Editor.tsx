@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import {
   useNodesState,
   useEdgesState,
@@ -6,18 +6,7 @@ import {
   type NodeChange,
   type EdgeChange,
 } from "@xyflow/react";
-import {
-  ArrowLeft,
-  Save,
-  Play,
-  Zap,
-  Sparkles,
-  ShieldCheck,
-  CircleCheck,
-  Archive,
-  Link2,
-  X,
-} from "lucide-react";
+import { ArrowLeft, Save, Play, Archive, Link2, X } from "lucide-react";
 import { api, ApiError, message } from "./api";
 import { useResource } from "./useResource";
 import type {
@@ -28,7 +17,6 @@ import type {
   Version,
   RunSummary,
 } from "./types";
-import { Canvas } from "./Canvas";
 import { StepInspector } from "./StepInspector";
 import {
   supportTemplate,
@@ -42,6 +30,11 @@ import { RunDialog } from "./RunDialog";
 import { Modal } from "./Modal";
 import { draftGuard } from "./navigation";
 import { Badge, date, ErrorNotice, Pager, JsonView } from "./ui";
+const N8nWorkflowBlock = lazy(() =>
+  import("@/components/ui/n8n-workflow-block-shadcnui").then((module) => ({
+    default: module.N8nWorkflowBlock,
+  })),
+);
 export function WorkflowPage({
   id,
   navigate,
@@ -146,7 +139,7 @@ function Editor({
       next.map((edge) => ({
         ...edge,
         id: `${edge.source}-${edge.target}`,
-        type: "smoothstep",
+        type: "default",
       })),
     );
     setDirty(true);
@@ -161,6 +154,14 @@ function Editor({
     setDirty(true);
   }
   function add(type: NodeType) {
+    if (
+      busy ||
+      workflow?.archived ||
+      nodes.length >= 50 ||
+      (type === "TRIGGER" &&
+        nodes.some((n) => n.data.definition.type === "TRIGGER"))
+    )
+      return;
     const id = type.toLowerCase() + "_" + crypto.randomUUID().slice(0, 8);
     const definition: WorkflowNode = {
       id,
@@ -363,69 +364,43 @@ function Editor({
             </label>
           </div>
           <div className="editor-workspace">
-            <div className="canvas-area">
-              <div className="canvas-toolbar">
-                <span>ADD A STEP</span>
-                {(
-                  [
-                    ["TRIGGER", Zap, "Trigger"],
-                    ["AI_STEP", Sparkles, "Agent"],
-                    ["ACTION", CircleCheck, "Action"],
-                    ["APPROVAL", ShieldCheck, "Approval"],
-                  ] as const
-                ).map(([type, Icon, label]) => (
-                  <button
-                    key={type}
-                    disabled={
-                      busy ||
-                      workflow?.archived ||
-                      nodes.length >= 50 ||
-                      (type === "TRIGGER" &&
-                        nodes.some((n) => n.data.definition.type === "TRIGGER"))
-                    }
-                    onClick={() => add(type)}
-                  >
-                    <Icon size={14} />
-                    {label}
-                  </button>
-                ))}
-                {!workflow && (
-                  <button
-                    className="quiet"
-                    disabled={busy}
-                    onClick={() => {
-                      const agent = toCanvas(supportTemplate(true));
-                      setNodes(agent.nodes);
-                      setEdges(agent.edges);
-                      setDirty(true);
-                    }}
-                  >
-                    Agent template
-                  </button>
-                )}
-              </div>
-              <div className="canvas">
-                <Canvas
-                  nodes={nodes}
-                  edges={edges}
-                  readonly={busy || workflow?.archived}
-                  onNodesChange={onNodesChange}
-                  onEdgesChange={onEdgesChange}
-                  onConnect={connectSteps}
-                  onSelect={setSelected}
-                />
-              </div>
-              <div className="canvas-caption">
-                <span>
-                  <span className="dot" />
-                  {nodes.length} steps · {edges.length} connections
-                </span>
-                <span>
-                  Drag to arrange · Connect handles · Select an edge + Delete to
-                  disconnect
-                </span>
-              </div>
-            </div>
+            <Suspense
+              fallback={
+                <div className="canvas" role="status">
+                  Opening canvas…
+                </div>
+              }
+            >
+              <N8nWorkflowBlock
+                nodes={nodes}
+                edges={edges}
+                readonly={busy || workflow?.archived}
+                status={
+                  busy
+                    ? "Saving"
+                    : workflow?.archived
+                      ? "Read only"
+                      : dirty
+                        ? "Draft"
+                        : "Saved"
+                }
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={connectSteps}
+                onSelect={setSelected}
+                onAdd={add}
+                onAgentTemplate={
+                  !workflow
+                    ? () => {
+                        const agent = toCanvas(supportTemplate(true));
+                        setNodes(agent.nodes);
+                        setEdges(agent.edges);
+                        setDirty(true);
+                      }
+                    : undefined
+                }
+              />
+            </Suspense>
             <StepInspector
               disabled={busy}
               node={workflow?.archived ? undefined : current?.data.definition}
