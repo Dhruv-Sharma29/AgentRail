@@ -10,3 +10,6 @@ frontend/dist/
 .idea/
 .vscode/
 __pycache__/
+
+frontend/test-results/
+frontend/playwright-report/
