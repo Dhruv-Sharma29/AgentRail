@@ -40,4 +40,16 @@ class ExecutionPlanTest {
     @Test void rejectsMalformedGraphBeforeOrdering() {
         assertThatIllegalArgumentException().isThrownBy(() -> plan.validate(new WorkflowDefinition(List.of(trigger), List.of(new Edge("start", "missing")))));
     }
+    @Test void approvalRequiresBoundedSettingsAndAnImmediateResultAction() {
+        var record=new Node("record",NodeType.ACTION,"Record",Operation.RECORD_RESULT);
+        var valid=new Node("review",NodeType.APPROVAL,"Review",null,null,new ApprovalSettings(3600));
+        var edges=List.of(new Edge("start","review"),new Edge("review","record"));
+        assertThat(plan.validate(new WorkflowDefinition(List.of(trigger,valid,record),edges))).hasSize(3);
+        var unbounded=new Node("review",NodeType.APPROVAL,"Review",null,null,new ApprovalSettings(86401));
+        assertThatIllegalArgumentException().isThrownBy(() -> plan.validate(new WorkflowDefinition(List.of(trigger,unbounded,record),edges)));
+        var wrong=new Node("record",NodeType.ACTION,"Classify",Operation.CLASSIFY_ISSUE);
+        assertThatIllegalArgumentException().isThrownBy(() -> plan.validate(new WorkflowDefinition(List.of(trigger,valid,wrong),edges)));
+        var misplaced=new Node("record",NodeType.ACTION,"Record",Operation.RECORD_RESULT,null,new ApprovalSettings(3600));
+        assertThatIllegalArgumentException().isThrownBy(() -> plan.validate(new WorkflowDefinition(List.of(trigger,misplaced),List.of(new Edge("start","record")))));
+    }
 }

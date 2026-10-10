@@ -34,3 +34,8 @@ Tool proposals are untrusted, including anything derived from retrieved document
 ## MVP exclusions
 
 Microservices, marketplace tools, arbitrary code nodes, unrestricted browser agents, automatic side effects, multi-organization sharing, billing, and local model support are deferred. Redis and a durable workflow product require a demonstrated execution need.
+
+
+## Implemented Phase 4 contract
+
+The support demo now executes receive → classify → documentation → owner approval → local result. Configured approvals freeze the exact original issue, checkpoint, target operation, owner and required USER role; rejected, expired and cancelled requests cannot execute the result. Independent approvers and remote ticket creation are future increments. Pure ACTION retries are Java-classified, limited to three attempts with persisted backoff/jitter, and subject to current approval/role checks and a 120-second active run deadline. Human waiting is excluded. Provider/agent requests with uncertain outcomes are never automatically replayed.

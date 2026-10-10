@@ -38,8 +38,9 @@ class Api:
             content = response.read()
             return json.loads(content) if content else None
 
-    def start_demo(self, subject, body, agent=False):
-        example = Path(__file__).resolve().parent.parent / "examples" / ("agent-support-intake.json" if agent else "support-intake.json")
+    def start_demo(self, subject, body, agent=False, approval=False):
+        name = ("agent-" if agent else "") + ("approval-" if approval else "") + "support-intake.json"
+        example = Path(__file__).resolve().parent.parent / "examples" / name
         workflow = self.request("/api/workflows", "POST", json.loads(example.read_text()), expected=201)
         payload = {"versionNumber": workflow["currentVersion"], "idempotencyKey": str(uuid.uuid4()),
                    "input": {"subject": subject, "body": body}}

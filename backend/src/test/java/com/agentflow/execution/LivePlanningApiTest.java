@@ -158,6 +158,33 @@ class LivePlanningApiTest {
         executions.completePlanning(job,new LivePlanner.Result(PROPOSAL,123),null);
         assertFailed(run,"RUN_DEADLINE_EXCEEDED");
     }
+    @Test void livePlannerCannotResumeHumanPauseAndApprovalWaitPreservesActiveBudget() throws Exception {
+        when(live.propose(any())).thenAnswer(call -> {
+            assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            LivePlanner.Job job=call.getArgument(0);
+            String proposal=job.request().goal()==com.agentflow.workflow.WorkflowDefinition.AgentGoal.CLASSIFY_ISSUE ? PROPOSAL
+                    : "{\"toolCalls\":[{\"tool\":\"search_documentation\",\"arguments\":{\"category\":\"ACCOUNT\"}}]}";
+            return new LivePlanner.Result(proposal,123);
+        });
+        UUID run=start(json.readTree(LocalRetryApiTest.APPROVAL_DEFINITION));
+        for(int i=0;i<4;i++) coordinator.advance(run);
+        var waiting=trace(run);
+        assertThat(waiting.path("mode").asText()).isEqualTo(expectedMode());
+        assertThat(waiting.path("status").asText()).isEqualTo("WAITING_FOR_APPROVAL");
+        when(clock.instant()).thenReturn(NOW.plusSeconds(600));
+        coordinator.advance(run); assertThat(executions.claimPlanning(run)).isEmpty();
+        assertThat(trace(run)).isEqualTo(waiting);
+        var approval=waiting.path("approvals").get(0);
+        mvc.perform(post("/api/approvals/"+approval.path("id").asText()+"/decision").with(user("alice")).with(csrf())
+                .contentType("application/json").content(json.writeValueAsString(Map.of("decision","APPROVE","payloadDigest",approval.path("payloadDigest").asText()))))
+                .andExpect(status().isOk());
+        coordinator.advance(run);
+        assertThat(trace(run).path("status").asText()).isEqualTo("SUCCEEDED");
+        assertThat(trace(run).path("plannerCalls").asInt()).isEqualTo(2);
+        assertThat(trace(run).path("toolCalls").asInt()).isEqualTo(2);
+        assertThat(trace(run).path("context").path("result").path("externalTicketCreated").asBoolean()).isFalse();
+        verify(live,times(2)).propose(any());
+    }
     private void assertFailed(UUID run,String code) throws Exception {
         var trace=trace(run); assertThat(trace.path("status").asText()).isEqualTo("FAILED");
         assertThat(trace.path("errorCode").asText()).isEqualTo(code); assertThat(trace.path("toolCalls").asInt()).isZero();
@@ -167,6 +194,9 @@ class LivePlanningApiTest {
     }
     private UUID start() throws Exception {
         var definition=json.readTree("{\"nodes\":[{\"id\":\"receive\",\"type\":\"TRIGGER\",\"label\":\"Receive\"},{\"id\":\"agent\",\"type\":\"AI_STEP\",\"label\":\"Propose\",\"agent\":{\"goal\":\"CLASSIFY_ISSUE\",\"allowedTools\":[\"classify_issue\"],\"maxToolCalls\":1}},{\"id\":\"record\",\"type\":\"ACTION\",\"label\":\"Record\",\"operation\":\"SEARCH_DOCUMENTATION\"}],\"edges\":[{\"source\":\"receive\",\"target\":\"agent\"},{\"source\":\"agent\",\"target\":\"record\"}]}");
+        return start(definition);
+    }
+    private UUID start(JsonNode definition) throws Exception {
         var created=mvc.perform(post("/api/workflows").with(user("alice")).with(csrf()).contentType("application/json").content(json.writeValueAsString(Map.of("name","Live intake","description","Synthetic data","definition",definition)))).andExpect(status().isCreated()).andReturn();
         String workflow=json.readTree(created.getResponse().getContentAsString()).path("id").asText();
         var started=mvc.perform(post("/api/workflows/"+workflow+"/runs").with(user("alice")).with(csrf()).contentType("application/json").content(json.writeValueAsString(Map.of("versionNumber",1,"idempotencyKey","live","input",Map.of("subject","Cannot log in","body","Password reset failed"))))).andExpect(status().isAccepted()).andReturn();

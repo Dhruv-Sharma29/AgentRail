@@ -61,4 +61,8 @@ public class LocalActions {
     public static class StepFailure extends RuntimeException {
         StepFailure(String code) { super(code); }
     }
+    /** Only Java-owned pure handlers may classify a failure as safe to retry. */
+    public static final class TransientFailure extends StepFailure {
+        public TransientFailure() { super("LOCAL_TRANSIENT_FAILURE"); }
+    }
 }

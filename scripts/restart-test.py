@@ -39,6 +39,7 @@ def wait_ready(process, base, log):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--agent", action="store_true", help="Verify agent proposal and budget recovery")
+    parser.add_argument("--approval", action="store_true", help="Kill/restart while waiting for a human decision")
     args = parser.parse_args()
     jar = ROOT / "backend/target/agentflow-0.1.0-SNAPSHOT.jar"
     if not jar.is_file():
@@ -67,6 +68,7 @@ def main():
                        DATABASE_USERNAME="agentflow", DATABASE_PASSWORD="restart-test-only",
                        BOOTSTRAP_USERNAME="restart-check", BOOTSTRAP_PASSWORD="restart-check-only-password",
                        SESSION_COOKIE_SECURE="false")
+            env["AGENTFLOW_PLANNER_PROVIDER"] = "deterministic"
             env.pop("SPRING_PROFILES_ACTIVE", None)
             command = ["java", "-jar", str(jar), "--server.address=127.0.0.1", f"--server.port={api_port}",
                        "--agentflow.execution.worker-enabled=true", "--agentflow.execution.poll-delay-ms=2000"]
@@ -74,27 +76,40 @@ def main():
                 process = subprocess.Popen(command, env=env, cwd=directory, stdout=output, stderr=subprocess.STDOUT)
                 wait_ready(process, base, log)
                 api = demo.Api(base, "restart-check", "restart-check-only-password")
-                run = api.start_demo("Cannot log in", "Password reset failed", args.agent)
+                run = api.start_demo("Cannot log in", "Password reset failed", args.agent, approval=args.approval)
                 completed = 1 if args.agent else 0
-                checkpoint = api.wait(run["id"], lambda r: r["status"] == "RUNNING" and r["steps"][completed]["status"] == "SUCCEEDED")
-                if checkpoint["steps"][completed + 1]["status"] != "PENDING":
+                checkpoint = api.wait(run["id"], lambda r: r["status"] == "WAITING_FOR_APPROVAL" if args.approval
+                                      else r["status"] == "RUNNING" and r["steps"][completed]["status"] == "SUCCEEDED")
+                if not args.approval and checkpoint["steps"][completed + 1]["status"] != "PENDING":
                     raise RuntimeError("Missed the checkpoint; rerun the check")
-                if args.agent and (checkpoint["plannerCalls"] != 1 or checkpoint["toolCalls"] != 1):
+                calls_before_kill = 2 if args.approval else 1
+                if args.agent and (checkpoint["plannerCalls"] != calls_before_kill or checkpoint["toolCalls"] != calls_before_kill):
                     raise RuntimeError("First agent checkpoint did not preserve its usage")
                 process.kill()  # Only the test-owned child process; intentionally no graceful shutdown.
                 process.wait(timeout=10)
                 process = subprocess.Popen(command, env=env, cwd=directory, stdout=output, stderr=subprocess.STDOUT)
                 wait_ready(process, base, log)
                 api = demo.Api(base, "restart-check", "restart-check-only-password")
+                if args.approval:
+                    paused = api.request(f"/api/runs/{run['id']}")
+                    if paused["status"] != "WAITING_FOR_APPROVAL" or paused["approvals"] != checkpoint["approvals"] or "result" in paused["context"]:
+                        raise RuntimeError("Restart lost or bypassed the approval checkpoint")
+                    approval = paused["approvals"][0]
+                    decision = {"decision": "APPROVE", "payloadDigest": approval["payloadDigest"]}
+                    route = f"/api/approvals/{approval['id']}/decision"
+                    api.request(route, "POST", decision)
+                    api.request(route, "POST", decision)
                 recovered = api.wait(run["id"], lambda r: r["status"] in {"SUCCEEDED", "FAILED", "CANCELLED"})
                 if recovered["status"] != "SUCCEEDED" or any(step["attempts"] != 1 for step in recovered["steps"]):
                     raise RuntimeError("Restart lost or repeated a checkpoint")
-                if len(recovered["events"]) != (13 if args.agent else 7):
+                if len(recovered["events"]) != (13 if args.agent else 7) + (3 if args.approval else 0):
                     raise RuntimeError("Restart duplicated or lost audit events")
                 if args.agent and (recovered["plannerCalls"] != 2 or recovered["toolCalls"] != 2
                                    or any(step["policyStatus"] != "APPROVED" or not step["proposal"] for step in recovered["steps"][1:3])):
                     raise RuntimeError("Restart lost planner usage or approved proposals")
                 print("PASS: PostgreSQL checkpoint survived SIGKILL; fresh Java process resumed all remaining steps once")
+                if args.approval:
+                    print("PASS: exact pending approval survived restart; only an explicit, idempotent owner decision resumed the result action")
         except Exception:
             if log.exists():
                 print(log.read_text()[-6000:])

@@ -23,6 +23,7 @@ class WorkflowRun {
     @Column(updatable = false, length = 64) String plannerModel;
     @Column(nullable = false) int reservedPlannerTokens;
     @Column(nullable = false) int plannerTokens;
+    @Column(nullable = false) long pausedMillis;
     @Column(nullable = false, updatable = false) Instant createdAt;
     Instant startedAt;
     Instant finishedAt;
@@ -35,6 +36,7 @@ class WorkflowRun {
         this.input = input; context = "{}"; status = RunStatus.PENDING; createdAt = now;
     }
     boolean livePlanning() { return mode.equals("OPENAI_PLANNER") || mode.equals("GEMINI_PLANNER"); }
+    Instant executionDeadline() { return startedAt.plusMillis(pausedMillis).plusSeconds(com.agentflow.agent.ProposalPolicy.MAX_ELAPSED_SECONDS); }
     String plannerProvider() { return mode.equals("GEMINI_PLANNER") ? "gemini" : "openai"; }
     void start(Instant now) { status = RunStatus.RUNNING; startedAt = now; }
     void finish(RunStatus status, Instant now, String errorCode) {

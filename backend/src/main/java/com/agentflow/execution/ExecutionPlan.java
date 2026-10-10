@@ -17,6 +17,8 @@ public class ExecutionPlan {
         var byId = new HashMap<String, Node>();
         for (var node : definition.nodes()) {
             byId.put(node.id(), node);
+            if (node.type() != NodeType.APPROVAL && node.approval() != null)
+                throw new IllegalArgumentException("Only approval nodes may configure a checkpoint");
             if (node.type() == NodeType.TRIGGER) {
                 if (node.agent() != null || (node.operation() != null && node.operation() != Operation.RECEIVE_INPUT))
                     throw new IllegalArgumentException("Trigger operation must receive input");
@@ -28,6 +30,11 @@ public class ExecutionPlan {
                         || new HashSet<>(settings.allowedTools()).size() != settings.allowedTools().size()
                         || settings.maxToolCalls() == null || settings.maxToolCalls() < 1 || settings.maxToolCalls() > 3)
                     throw new IllegalArgumentException("Agent steps require registered tools and bounded settings");
+            } else if (node.type() == NodeType.APPROVAL) {
+                var settings=node.approval();
+                if (node.operation()!=null || node.agent()!=null || settings==null || settings.timeoutSeconds()==null
+                        || settings.timeoutSeconds()<60 || settings.timeoutSeconds()>86400)
+                    throw new IllegalArgumentException("Approval requires a bounded deadline");
             } else if (node.type() != NodeType.ACTION || node.agent() != null || node.operation() == null || node.operation() == Operation.RECEIVE_INPUT) {
                 throw new IllegalArgumentException("Only configured agent steps and explicit local actions are executable");
             }
@@ -44,6 +51,10 @@ public class ExecutionPlan {
             node = byId.get(next.get(node.id()));
         }
         if (ordered.size() != definition.nodes().size()) throw new IllegalArgumentException("Execution requires one chain");
+        for (int i=0;i<ordered.size();i++) if (ordered.get(i).type()==NodeType.APPROVAL) {
+            if (i+1>=ordered.size() || ordered.get(i+1).type()!=NodeType.ACTION || ordered.get(i+1).operation()!=Operation.RECORD_RESULT)
+                throw new IllegalArgumentException("Approval must immediately precede the local result action");
+        }
         return List.copyOf(ordered);
     }
 }

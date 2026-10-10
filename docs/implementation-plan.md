@@ -38,4 +38,14 @@ This slice records a local support result. Remote ticket creation, live classifi
 3. Run budgets and recovery: planner/tool/elapsed limits, role revocation and competing-worker tests, PostgreSQL verification, process restart after an approved proposal, runnable agent demo.
 4. Live provider integration: resolve credentials before provider work, verify official Spring AI/provider contracts, persist planning intents and results outside run locks, enforce token/deadline budgets, and keep paid tests opt-in.
 
-Slices 1–3 implement the deterministic proposal boundary. Slice 4 implements opt-in Spring AI/OpenAI planning with durable request/result stages, usage reservations, deadlines and fail-closed recovery. The Gemini extension reuses the bounded manual-tool Spring AI boundary through Google's OpenAI-compatible endpoint. Offline and PostgreSQL contracts pass, and the live Gemini demo succeeded with two planner calls, two tool calls and fifteen audit events. OpenAI live completion remains blocked by API quota. Human approvals and external ticket effects remain Phase 4.
+Slices 1–3 implement the deterministic proposal boundary. Slice 4 implements opt-in Spring AI/OpenAI planning with durable request/result stages, usage reservations, deadlines and fail-closed recovery. The Gemini extension reuses the bounded manual-tool Spring AI boundary through Google's OpenAI-compatible endpoint. Offline and PostgreSQL contracts pass, and the live Gemini demo succeeded with two planner calls, two tool calls and fifteen audit events. OpenAI live completion remains blocked by API quota. Human approvals and local reliability are implemented in Phase 4; external ticket effects require a separate tool increment.
+
+
+## Phase 4 slices
+
+1. Durable approvals: bounded configured APPROVAL before RECORD_RESULT; immutable payload/digest and owner/role binding; owner inbox/read/decision API; duplicate/conflicting decisions, rejection, expiry and cancellation tested.
+2. Resume and recovery: row-lock serialization, exact input/context revalidation, current role checks, persisted excluded approval time, rollback and PostgreSQL concurrency tests; real SIGKILL/fresh-process test while waiting for a decision.
+3. Bounded local retries: explicit pure ACTION allowlist and Java-classified transient failures; three attempts, persisted backoff/jitter, audits, deadline/cancellation/approval checks; controlled-fault contracts on H2 and PostgreSQL. Agent/provider calls and uncertain remote effects are never blindly retried.
+4. Review and demo: migration of populated V4 databases preserves history; full verification; interactive approval demo and API/runtime documentation.
+
+Scope: the complete support flow now reaches a human checkpoint and records an approved local result. External ticket creation, independent approver roles, remote-effect idempotency/reconciliation and branching are separate increments. Phase 5 can build its editor, traces and approval inbox against these stable APIs.

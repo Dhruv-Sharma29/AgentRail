@@ -2,7 +2,7 @@
 
 A workflow platform where AI proposes actions and a Java backend validates, authorizes, and controls execution.
 
-AgentFlow implements authenticated workflow management, durable execution, and a Java-controlled planner/tool boundary: Java 21, Spring Boot 3.5.16, Spring AI 1.1.8, JPA, Flyway, session authentication with CSRF, owner-scoped APIs, immutable versions, run checkpoints, cancellation, tool validation, and execution audits. Live Gemini or OpenAI planning is opt-in. Human approvals, retries, and the React Flow frontend are subsequent increments.
+AgentFlow implements authenticated workflow management, durable execution, and a Java-controlled planner/tool boundary: Java 21, Spring Boot 3.5.16, Spring AI 1.1.8, JPA, Flyway, session authentication with CSRF, owner-scoped APIs, immutable versions, run checkpoints, cancellation, tool validation, and execution audits. Live Gemini or OpenAI planning is opt-in. Durable human approvals and bounded pure local action retries are implemented. The React Flow frontend is the next phase.
 
 ## Run locally
 
@@ -39,7 +39,7 @@ To try another issue:
 python3 scripts/execution-demo.py --subject "Urgent billing problem" --body "My payment failed"
 ```
 
-The worker advances one step per polling cycle, normally every second. Linear graphs can contain trigger, action, and configured agent steps. Approval, condition, branching, and unconfigured nodes remain editable but return 400 when started.
+The worker advances one step per polling cycle, normally every second. Linear graphs can contain trigger, action, configured agent steps and configured approval checkpoints. Condition, branching and unconfigured nodes return 400 when started.
 
 ## Run the planner and tool demo
 
@@ -52,6 +52,20 @@ python3 scripts/execution-demo.py --agent
 This saves [examples/agent-support-intake.json](examples/agent-support-intake.json). Agent steps propose classification and documentation tools; Java validates the complete proposal, workflow allowlist, strict arguments, persisted user role, issue context and budgets before running a local handler. The trace prints planner identity, proposed tools, Java policy decisions and usage. A successful run records two planner calls, two tool calls and thirteen audit events.
 
 The default mode is `DETERMINISTIC_PLANNER`: no live model is called. The registered tools are read-only local capabilities. `GET /api/tools` exposes their metadata to authenticated users; there is no tool-registration API.
+
+## Review a human approval
+
+Restart the updated backend, then run from the repository root:
+
+```sh
+python3 scripts/approval-demo.py
+```
+
+The run pauses at `WAITING_FOR_APPROVAL` and prints the exact proposed local result action. Read it and enter `approve` or `reject`. Approval resumes execution; rejection prevents the result. The script verifies a repeated identical decision is idempotent. The saved payload, digest, decision and audit trail survive process restart.
+
+Use `python3 scripts/approval-demo.py --agent` to include agent planning with the server's configured provider. A Gemini/OpenAI server makes live model requests for those steps. Approval requires the authenticated workflow owner with the current USER role; independent reviewers and external ticket creation are future work. The demo freezes the issue, context and target operation before approval, then Java checks them again before execution.
+
+Pure ACTION handlers can retry only a Java-classified transient failure: three total attempts, 2/4-second backoff plus up to 500 ms jitter, persisted `nextAttemptAt`, and a 120-second active run budget. Approval wait time is excluded. Validation denials, unclassified errors, agent batches and provider requests are never automatically retried. Built-in handlers normally succeed immediately; retry tests use controlled faults. External tools will need separate idempotency and reconciliation.
 
 ## Opt in to live planning
 
@@ -106,9 +120,10 @@ From the repository root, after building the jar and with Docker running:
 ```sh
 python3 scripts/restart-test.py
 python3 scripts/restart-test.py --agent
+python3 scripts/restart-test.py --agent --approval
 ```
 
-Each restart check uses its own PostgreSQL container and API port. It kills its own Java process after a committed checkpoint, starts a fresh process, and verifies the remaining steps execute once. Agent mode also checks the persisted proposal and usage counters. It cleans up its processes and container. CI runs verification and both restart modes.
+Each restart check uses its own PostgreSQL container and API port. It kills its own Java process after a committed checkpoint, starts a fresh process, and verifies the remaining steps execute once. Agent mode also checks the persisted proposal and usage counters. It cleans up its processes and container. Approval mode kills the process while waiting for review, checks that the same frozen payload remains paused, and resumes only after an explicit test decision. CI runs verification and all three restart checks.
 
 Tests use an explicitly configured Mockito Java agent, avoiding dynamic self-attachment on newer JDKs. CI runs verify on Java 21 with Docker. H2 tests do not establish PostgreSQL compatibility.
 
@@ -122,7 +137,7 @@ docker compose up --build
 
 Compose binds API and database ports to loopback and keeps PostgreSQL data in a named volume. Its HTTP session setting is for local use. The default application configuration uses environment-supplied database and bootstrap credentials and Secure cookies; use HTTPS before exposing it remotely. The bootstrap user is created only when the username does not already exist; changing the environment password does not rotate an existing user's password.
 
-Registration, password rotation, login throttling, production ingress, remote-tool reliability, and approvals remain on the implementation plan. The API currently has a single USER role; approver and tool administration roles arrive with those modules. Execution audits cover lifecycle and step outcomes; authentication and administrative audits are future work.
+Registration, password rotation, login throttling, production ingress, remote-tool reliability, and independent approver roles remain on the implementation plan. The API currently has a single USER role; approver and tool administration roles arrive with those modules. Execution audits cover lifecycle and step outcomes; authentication and administrative audits are future work.
 
 ## Project documents
 

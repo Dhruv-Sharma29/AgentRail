@@ -1,0 +1,57 @@
+{
+  "name": "Support intake with human review",
+  "description": "Approve or reject the exact local result action before it executes.",
+  "definition": {
+    "nodes": [
+      {
+        "id": "receive",
+        "type": "TRIGGER",
+        "label": "Receive issue"
+      },
+      {
+        "id": "classify",
+        "type": "ACTION",
+        "label": "Classify issue",
+        "operation": "CLASSIFY_ISSUE"
+      },
+      {
+        "id": "search",
+        "type": "ACTION",
+        "label": "Find documentation",
+        "operation": "SEARCH_DOCUMENTATION"
+      },
+      {
+        "id": "review",
+        "type": "APPROVAL",
+        "label": "Review proposed result",
+        "approval": {
+          "timeoutSeconds": 3600
+        }
+      },
+      {
+        "id": "record",
+        "type": "ACTION",
+        "label": "Record result",
+        "operation": "RECORD_RESULT"
+      }
+    ],
+    "edges": [
+      {
+        "source": "receive",
+        "target": "classify"
+      },
+      {
+        "source": "classify",
+        "target": "search"
+      },
+      {
+        "source": "search",
+        "target": "review"
+      },
+      {
+        "source": "review",
+        "target": "record"
+      }
+    ]
+  }
+}
