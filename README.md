@@ -45,7 +45,9 @@ The sign-in page includes an animated support-workflow preview with pause/play c
 
 Reusable UI components belong in `frontend/src/components/ui`. The real workflow editor uses `n8n-workflow-block-shadcnui.tsx`: typed node cards, curved connections, a keyboard-accessible Add node menu and counts from the saved draft. React Flow owns the drag/connection behavior; the parent editor persists positions and validates the graph. Only supported AgentFlow steps appear in the menu. Execution and approval decisions remain controlled by Java.
 
-`frontend/components.json` configures shadcn for Tailwind 4, the existing stylesheet and `@` aliases. Badge, Button, Card and Dropdown Menu were installed with the official shadcn 4.21.4 CLI; semantic colors match the forest/cream theme. To preview another primitive, run `npx shadcn@latest add <component> --dry-run` from `frontend`, then review its files, dependencies and theme changes before installing it. The builder is loaded separately from the initial page bundle. See the [shadcn Vite setup](https://ui.shadcn.com/docs/installation/vite).
+The selected **Console** theme uses charcoal surfaces, mint actions, amber approval checkpoints, compact navigation and monospace execution details. It applies to sign-in, workflows, traces, approvals, tools and dialogs, including when the operating system uses light mode. Shared semantic colors and keyboard focus styles live in `frontend/src/styles.css`.
+
+`frontend/components.json` configures shadcn for Tailwind 4, the existing stylesheet and `@` aliases. Badge, Button, Card and Dropdown Menu were installed with the official shadcn 4.21.4 CLI and use the Console theme tokens. To preview another primitive, run `npx shadcn@latest add <component> --dry-run` from `frontend`, then review its files, dependencies and theme changes before installing it. The builder is loaded separately from the initial page bundle. See the [shadcn Vite setup](https://ui.shadcn.com/docs/installation/vite).
 
 ## Run the first workflow
 

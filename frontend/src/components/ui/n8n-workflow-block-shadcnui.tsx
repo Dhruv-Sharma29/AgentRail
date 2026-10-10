@@ -50,13 +50,6 @@ const kinds = {
   ACTION: "Action",
   CONDITION: "Condition",
 };
-const colors = {
-  TRIGGER: "border-emerald-300/70 bg-emerald-50/60 text-emerald-800",
-  AI_STEP: "border-violet-300/60 bg-violet-50/60 text-violet-800",
-  APPROVAL: "border-amber-300/70 bg-amber-50/70 text-amber-800",
-  ACTION: "border-sky-300/60 bg-sky-50/60 text-sky-800",
-  CONDITION: "border-slate-300/70 bg-slate-50 text-slate-700",
-};
 const addableTypes = [
   ["TRIGGER", "Trigger"],
   ["AI_STEP", "Agent"],
@@ -81,15 +74,16 @@ function WorkflowCard({ data, selected }: NodeProps<FlowNode>) {
     <Card
       className={cn(
         "workflow-node relative w-[200px] gap-2 rounded-xl border p-3 transition-shadow hover:shadow-md",
-        colors[node.type],
-        selected && "ring-2 ring-primary/40 ring-offset-2",
+        `workflow-node-${node.type.toLowerCase()}`,
+        selected &&
+          "ring-2 ring-primary/40 ring-offset-2 ring-offset-background",
       )}
       role="article"
       aria-label={`${kinds[node.type]} node: ${node.label}`}
     >
       <div className="flex items-center gap-2.5">
         <div
-          className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-current/20 bg-white/70"
+          className="workflow-node-icon flex size-9 shrink-0 items-center justify-center rounded-lg border border-current/20 bg-card"
           aria-hidden="true"
         >
           <Icon size={17} />
@@ -97,7 +91,7 @@ function WorkflowCard({ data, selected }: NodeProps<FlowNode>) {
         <div className="min-w-0 flex-1">
           <Badge
             variant="outline"
-            className="mb-1 rounded-full border-current/20 bg-white/60 px-1.5 py-0 text-[9px] uppercase tracking-wider text-inherit"
+            className="mb-1 rounded-full border-current/20 bg-card px-1.5 py-0 text-[9px] uppercase tracking-wider text-inherit"
           >
             {kinds[node.type]}
           </Badge>
@@ -106,10 +100,10 @@ function WorkflowCard({ data, selected }: NodeProps<FlowNode>) {
           </strong>
         </div>
       </div>
-      <span className="text-[11px] leading-relaxed text-muted-foreground">
+      <span className="workflow-node-detail text-[11px] leading-relaxed text-muted-foreground">
         {detail}
       </span>
-      <div className="flex items-center gap-1.5 border-t border-current/10 pt-2 text-[10px] text-muted-foreground">
+      <div className="workflow-node-links flex items-center gap-1.5 border-t border-current/10 pt-2 text-[10px] text-muted-foreground">
         <ArrowRight size={12} aria-hidden="true" />
         {connections.length
           ? `${connections.length} ${connections.length === 1 ? "link" : "links"}`
@@ -216,8 +210,9 @@ export function N8nWorkflowBlock({
           </DropdownMenu>
         </div>
       </div>
-      <div className="canvas overflow-hidden rounded-xl border border-border/80 bg-white/50">
+      <div className="canvas overflow-hidden rounded-xl border border-border/80 bg-card">
         <ReactFlow<FlowNode>
+          colorMode="dark"
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
@@ -246,14 +241,14 @@ export function N8nWorkflowBlock({
               type: MarkerType.ArrowClosed,
               width: 14,
               height: 14,
-              color: "#819477",
+              color: "#869797",
             },
           }}
           aria-label="Workflow canvas"
         >
           <Background
             variant={BackgroundVariant.Dots}
-            color="#cbd5c1"
+            color="#293c39"
             gap={22}
             size={1}
           />
@@ -261,12 +256,12 @@ export function N8nWorkflowBlock({
           <MiniMap
             pannable
             zoomable
-            nodeColor="#b7cd9f"
-            maskColor="#f4f7eeaa"
+            nodeColor="#315344"
+            maskColor="#101618bb"
           />
         </ReactFlow>
       </div>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/70 bg-white/60 px-3 py-2.5 text-[11px] text-muted-foreground">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/70 bg-card px-3 py-2.5 text-[11px] text-muted-foreground">
         <div
           role="status"
           aria-live="polite"

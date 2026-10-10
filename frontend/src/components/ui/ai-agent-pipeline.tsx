@@ -61,17 +61,17 @@ export default function EnterpriseAIPipeline() {
     <LazyMotion features={domAnimation}>
       <section
         aria-label="AgentFlow workflow preview"
-        className="@container w-full max-w-[660px] overflow-hidden rounded-2xl border border-[#b9d895]/20 bg-[#12271d] text-[#edf5e5] shadow-[0_20px_70px_-35px_#06190d]"
+        className="@container w-full max-w-[660px] overflow-hidden rounded-2xl border border-[#9aebbb]/20 bg-[#101618] text-[#edf2f0] shadow-[0_20px_70px_-35px_#050909]"
       >
         <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
           <div className="flex items-center gap-2">
             <m.span
-              className="size-1.5 rounded-full bg-[#b9d895]"
+              className="size-1.5 rounded-full bg-[#9aebbb]"
               animate={{ opacity: playing ? [1, 0.4, 1] : 1 }}
               transition={{ duration: 2, repeat: playing ? Infinity : 0 }}
               aria-hidden="true"
             />
-            <span className="font-mono text-[10px] tracking-widest text-[#c2d1bb]">
+            <span className="font-mono text-[10px] tracking-widest text-[#b8c6c4]">
               WORKFLOW PREVIEW
             </span>
           </div>
@@ -109,7 +109,7 @@ export default function EnterpriseAIPipeline() {
               <path
                 d="M2 1.5L7.5 5L2 8.5"
                 fill="none"
-                stroke="#b9d895"
+                stroke="#9aebbb"
                 strokeWidth="1.6"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -121,13 +121,13 @@ export default function EnterpriseAIPipeline() {
               <path
                 d={path}
                 fill="none"
-                stroke="#759267"
+                stroke="#869797"
                 strokeWidth="1.3"
                 strokeDasharray="3 5"
                 markerEnd={`url(#${markerId})`}
               />
               {playing && (
-                <circle r="2.5" fill="#b9d895">
+                <circle r="2.5" fill="#9aebbb">
                   <animateMotion
                     dur="1.6s"
                     repeatCount="indefinite"
@@ -148,15 +148,15 @@ export default function EnterpriseAIPipeline() {
                   width="140"
                   height="54"
                   rx="9"
-                  fill={active ? "#283f2c" : "#192e23"}
-                  animate={{ stroke: active ? "#b9d895" : "#3b5241" }}
+                  fill={active ? "#1b3028" : "#16221e"}
+                  animate={{ stroke: active ? "#9aebbb" : "#315344" }}
                   transition={{ duration: playing ? 0.3 : 0 }}
                 />
                 <text
                   x={step.x + 14}
                   y={step.y + 13}
                   fontSize="8.5"
-                  fill="#a9bca2"
+                  fill="#9badad"
                   fontFamily="monospace"
                   letterSpacing="1"
                 >
@@ -166,7 +166,7 @@ export default function EnterpriseAIPipeline() {
                   cx={step.x + 124}
                   cy={step.y + 12}
                   r="2.5"
-                  fill={active ? "#b9d895" : "#657e60"}
+                  fill={active ? "#9aebbb" : "#869797"}
                   animate={{ opacity: active && playing ? [0.4, 1, 0.4] : 1 }}
                   transition={{
                     duration: 1.6,
@@ -177,7 +177,7 @@ export default function EnterpriseAIPipeline() {
                   x={step.x + 14}
                   y={step.y + 30}
                   fontSize="12"
-                  fill="#edf5e5"
+                  fill="#edf2f0"
                   fontFamily="system-ui"
                 >
                   {step.label}
@@ -186,7 +186,7 @@ export default function EnterpriseAIPipeline() {
                   x={step.x + 14}
                   y={step.y + 45}
                   fontSize="9"
-                  fill="#a9bca2"
+                  fill="#9badad"
                   fontFamily="system-ui"
                 >
                   {step.detail}
@@ -198,7 +198,7 @@ export default function EnterpriseAIPipeline() {
             x="20"
             y="136"
             fontSize="10"
-            fill="#a9bca2"
+            fill="#9badad"
             fontFamily="monospace"
           >
             AI PROPOSES.
@@ -207,7 +207,7 @@ export default function EnterpriseAIPipeline() {
             x="20"
             y="152"
             fontSize="10"
-            fill="#b9d895"
+            fill="#9aebbb"
             fontFamily="monospace"
           >
             YOU STAY IN CONTROL.
@@ -220,12 +220,12 @@ export default function EnterpriseAIPipeline() {
               key={step.label}
               className="flex items-center gap-3 text-[13px]"
             >
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-[#b9d895]/25 font-mono text-[10px] text-[#b9d895]">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-[#9aebbb]/25 font-mono text-[10px] text-[#9aebbb]">
                 0{index + 1}
               </span>
               <div className="flex flex-1 flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                 <span>{step.label}</span>
-                <span className="text-[11px] text-[#a9bca2]">
+                <span className="text-[11px] text-[#9badad]">
                   {step.detail}
                 </span>
               </div>
@@ -234,7 +234,7 @@ export default function EnterpriseAIPipeline() {
         </ol>
 
         <div className="flex min-h-16 items-center gap-3 border-t border-white/10 px-4 py-3 font-mono text-[11px] leading-relaxed">
-          <span className="text-[#b9d895]" aria-hidden="true">
+          <span className="text-[#9aebbb]" aria-hidden="true">
             ›
           </span>
           <div
@@ -255,9 +255,9 @@ export default function EnterpriseAIPipeline() {
             </AnimatePresence>
           </div>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 px-4 py-3 text-[10px] text-[#a9bca2]">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 px-4 py-3 text-[10px] text-[#9badad]">
           <span>Preview only · no actions run</span>
-          <span className="font-mono text-[#c2d1bb]">
+          <span className="font-mono text-[#b8c6c4]">
             JAVA CONTROLS EXECUTION
           </span>
         </div>
