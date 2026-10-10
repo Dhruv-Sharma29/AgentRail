@@ -7,7 +7,7 @@
 | auth | Persisted users, BCrypt passwords, session login, logout, CSRF | Spring Security establishes the principal; requests cannot select ownership |
 | workflow | DAG validation, owner-scoped CRUD, immutable version history | Controllers pass the principal to transactional services; repositories scope object queries to owner |
 | execution | Run lifecycle, local actions, durable checkpoints, cancellation, audit events | Run creation validates a saved version; the worker serializes transitions on a run row |
-| agent | Deterministic and opt-in Spring AI/OpenAI proposals, strict proposal policy | The planner receives bounded issue/context data and returns JSON; it cannot execute tools |
+| agent | Deterministic and opt-in Spring AI/Gemini/OpenAI proposals, strict proposal policy | The planner receives bounded issue/context data and returns JSON; it cannot execute tools |
 | tools | Code-controlled read-only tool registry, roles, schemas and context validation | Java validates names and typed arguments; workflow/model data cannot register capabilities |
 | common | Safe controller error responses | Malformed requests are 400, missing/unowned resources 404, stale writes 409 |
 
@@ -59,8 +59,8 @@ The intent expires after at most 35 seconds, capped at the run's deadline. The a
 
 Cancellation marks an in-flight intent ABANDONED. Late results cannot authorize tools. A crash or result-transaction rollback leaves REQUESTED; a fresh worker fails it with PLANNING_OUTCOME_UNKNOWN after expiry, without reissuing a potentially billed request. Reservations are not refunded on uncertain outcomes, cancellation or provider rejection. Reported token totals include accepted result transactions; they are not a billing ledger. Provider retries and recursive tool/model loops are disabled. Bounded error parsing preserves only allowlisted failure categories; rejected body text and prompts are not logged by the OpenAI model logger.
 
-Changing provider configuration affects new runs. Existing deterministic runs retain their mode. Pending live runs need the live provider configured; otherwise they fail with PLANNER_UNAVAILABLE. The run freezes the requested model. Credentials remain process configuration, never run data. The `openai` profile reads the ignored repository credential file when launched from backend; default mode does not require an API key.
+Changing provider configuration affects new runs. Existing deterministic runs retain their mode. Pending live runs need their original provider configured; otherwise they fail with PLANNER_UNAVAILABLE before network dispatch. The run freezes its provider mode and requested model. Credentials remain process configuration, never run data. The `openai` and `gemini` profiles read the ignored repository credential file when launched from backend; default mode does not require an API key.
 
 Sensitive effects still require a durable human approval bound to the exact proposal. Remote tools need their own idempotency and reconciliation for uncertain outcomes.
 
-External tools, approval decisions, branching semantics, and action retries remain future work. Persisting AI/action node labels has no side effect. The live provider success path is tested offline with mocked HTTP responses; the local live request encountered HTTP 429, so successful live completion is not claimed.
+External tools, approval decisions, branching semantics, and action retries remain future work. Persisting AI/action node labels has no side effect. Both provider paths are tested offline with mocked HTTP responses. The live Gemini support demo completed with two proposals validated by Java, two local tools and fifteen audit events. OpenAI requests encountered quota errors; successful OpenAI completion is not claimed. Gemini uses Google's fixed OpenAI-compatible endpoint through the existing Spring AI client, without enabling automatic callbacks or adding dependencies.

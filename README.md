@@ -2,7 +2,7 @@
 
 A workflow platform where AI proposes actions and a Java backend validates, authorizes, and controls execution.
 
-AgentFlow implements authenticated workflow management, durable execution, and a Java-controlled planner/tool boundary: Java 21, Spring Boot 3.5.16, Spring AI 1.1.8, JPA, Flyway, session authentication with CSRF, owner-scoped APIs, immutable versions, run checkpoints, cancellation, tool validation, and execution audits. Live OpenAI planning is opt-in. Human approvals, retries, and the React Flow frontend are subsequent increments.
+AgentFlow implements authenticated workflow management, durable execution, and a Java-controlled planner/tool boundary: Java 21, Spring Boot 3.5.16, Spring AI 1.1.8, JPA, Flyway, session authentication with CSRF, owner-scoped APIs, immutable versions, run checkpoints, cancellation, tool validation, and execution audits. Live Gemini or OpenAI planning is opt-in. Human approvals, retries, and the React Flow frontend are subsequent increments.
 
 ## Run locally
 
@@ -54,6 +54,29 @@ This saves [examples/agent-support-intake.json](examples/agent-support-intake.js
 The default mode is `DETERMINISTIC_PLANNER`: no live model is called. The registered tools are read-only local capabilities. `GET /api/tools` exposes their metadata to authenticated users; there is no tool-registration API.
 
 ## Opt in to live planning
+
+### Gemini
+
+Configure `GEMINI_API_KEY` in the ignored repository `.env.local` file. Obtain the key from [Google AI Studio](https://aistudio.google.com/apikey); keep it out of source control and chat. Stop any existing backend, then run:
+
+```sh
+cd backend
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev,gemini
+```
+
+In IntelliJ, select the shared **AgentFlow Gemini** run configuration instead of **AgentFlow Dev**. Run only one backend against the local H2 database; a second instance fails with a database-in-use error. The working directory must be `backend` so the profile finds `../.env.local`.
+
+In a second terminal from the repository root:
+
+```sh
+python3 scripts/execution-demo.py --agent
+```
+
+New runs report `GEMINI_PLANNER`. The default model is `gemini-3.5-flash-lite`; `AGENTFLOW_PLANNER_MODEL=gemini-3.8-flash` is also supported. Google documents [function calling through its OpenAI-compatible endpoint](https://ai.google.dev/gemini-api/docs/openai), so the existing Spring AI client sends requests to the fixed Google host without another SDK. No OpenAI request or OpenAI credential is needed for Gemini planning. Each run freezes its provider and model; switching server configuration cannot redirect an existing run to another provider.
+
+The live Gemini support demo passed with two planner calls, two Java-approved tool calls, 450 reported tokens and fifteen audit events. Classification remains the local keyword tool; no external ticket is created. Deadlines, input/response limits, token reservations, manual execution and disabled provider retries apply to both live providers. An ambiguous Google 429 is recorded as `PLANNER_ACCESS_LIMIT`; authentication errors are redacted. Gemini access and quotas depend on the key's Google project.
+
+### OpenAI
 
 After secure credential setup, the ignored repository `.env.local` contains OPENAI_API_KEY. Stop the existing server, then run from `backend`:
 

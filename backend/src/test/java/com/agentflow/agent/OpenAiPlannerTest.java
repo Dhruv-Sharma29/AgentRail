@@ -52,7 +52,7 @@ class OpenAiPlannerTest {
     }
     @Test void oversizedInputIsRejectedBeforeNetwork() {
         var job=job();
-        var huge=new LivePlanner.Job(job.intentId(),job.runId(),job.nodeId(),job.model(),new Planner.Request(AgentGoal.CLASSIFY_ISSUE,"subject","a".repeat(17000),null,Set.of("classify_issue")),job.deadline());
+        var huge=new LivePlanner.Job(job.intentId(),job.runId(),job.nodeId(),"openai",job.model(),new Planner.Request(AgentGoal.CLASSIFY_ISSUE,"subject","a".repeat(17000),null,Set.of("classify_issue")),job.deadline());
         assertThatThrownBy(() -> planner.propose(huge)).isInstanceOf(LivePlanner.Failure.class); server.verify();
     }
     @Test void oversizedHttpResponseIsBoundedBeforeDeserialization() {
@@ -63,7 +63,7 @@ class OpenAiPlannerTest {
         assertThatThrownBy(() -> limited.propose(job())).isInstanceOf(LivePlanner.Failure.class); mock.verify();
     }
     @Test void expiredIntentDoesNotStartNetworkWork() {
-        var current=job(); var expired=new LivePlanner.Job(current.intentId(),current.runId(),current.nodeId(),current.model(),current.request(),Instant.now().minusSeconds(1));
+        var current=job(); var expired=new LivePlanner.Job(current.intentId(),current.runId(),current.nodeId(),"openai",current.model(),current.request(),Instant.now().minusSeconds(1));
         assertThatThrownBy(() -> planner.propose(expired)).hasMessage("PLANNER_TIMEOUT"); server.verify();
     }
     @Test void rateLimitIsRedactedWithoutRetry() {
@@ -79,7 +79,7 @@ class OpenAiPlannerTest {
         assertThatThrownBy(() -> planner.propose(job())).hasMessage("PLANNER_ACCESS_LIMIT"); server.verify();
     }
     private LivePlanner.Job job() {
-        return new LivePlanner.Job(UUID.randomUUID(),UUID.randomUUID(),"classify","gpt-4.1-mini-2025-04-14",new Planner.Request(AgentGoal.CLASSIFY_ISSUE,"Cannot log in","Password reset failed",null,Set.of("classify_issue")),Instant.now().plusSeconds(35));
+        return new LivePlanner.Job(UUID.randomUUID(),UUID.randomUUID(),"classify","openai","gpt-4.1-mini-2025-04-14",new Planner.Request(AgentGoal.CLASSIFY_ISSUE,"Cannot log in","Password reset failed",null,Set.of("classify_issue")),Instant.now().plusSeconds(35));
     }
     private String response(String finish,String arguments) {
         return "{\"id\":\"synthetic\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"gpt-4.1-mini-2025-04-14\",\"choices\":[{\"index\":0,\"finish_reason\":\""+finish+"\",\"message\":{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"id\":\"call1\",\"type\":\"function\",\"function\":{\"name\":\"classify_issue\",\"arguments\":\""+arguments+"\"}}]}}],\"usage\":{\"prompt_tokens\":100,\"completion_tokens\":23,\"total_tokens\":123}}";

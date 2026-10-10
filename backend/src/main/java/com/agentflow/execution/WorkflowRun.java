@@ -34,6 +34,8 @@ class WorkflowRun {
         this.versionNumber = versionNumber; this.ownerId = ownerId; idempotencyKey = key;
         this.input = input; context = "{}"; status = RunStatus.PENDING; createdAt = now;
     }
+    boolean livePlanning() { return mode.equals("OPENAI_PLANNER") || mode.equals("GEMINI_PLANNER"); }
+    String plannerProvider() { return mode.equals("GEMINI_PLANNER") ? "gemini" : "openai"; }
     void start(Instant now) { status = RunStatus.RUNNING; startedAt = now; }
     void finish(RunStatus status, Instant now, String errorCode) {
         this.status = status; finishedAt = now; this.errorCode = errorCode;

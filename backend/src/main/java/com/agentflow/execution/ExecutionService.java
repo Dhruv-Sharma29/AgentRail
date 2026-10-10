@@ -66,6 +66,7 @@ public class ExecutionService {
         if (ordered.stream().anyMatch(n -> n.agent() != null)) {
             run.mode = "DETERMINISTIC_PLANNER";
             if (provider.equals("openai")) { run.mode = "OPENAI_PLANNER"; run.plannerModel = model; }
+            else if (provider.equals("gemini")) { run.mode = "GEMINI_PLANNER"; run.plannerModel = model; }
         }
         runs.saveAndFlush(run);
         for (int i = 0; i < ordered.size(); i++) {
@@ -122,7 +123,7 @@ public class ExecutionService {
         }
         var trace = steps.findByRunIdOrderByOrdinal(id);
         var step = trace.stream().filter(s -> s.status == RunStatus.PENDING).findFirst().orElseThrow();
-        if (run.mode.equals("OPENAI_PLANNER") && step.agentSettings != null) return;
+        if (run.livePlanning() && step.agentSettings != null) return;
         var input = step.operation == WorkflowDefinition.Operation.RECEIVE_INPUT ? run.input : run.context;
         String output;
         try {
@@ -201,7 +202,7 @@ public class ExecutionService {
     @Transactional
     public Optional<LivePlanner.Job> claimPlanning(UUID id) {
         var run = runs.lock(id).orElseThrow();
-        if (run.status.terminal() || !run.mode.equals("OPENAI_PLANNER") || run.status == RunStatus.PENDING) return Optional.empty();
+        if (run.status.terminal() || !run.livePlanning() || run.status == RunStatus.PENDING) return Optional.empty();
         var trace = steps.findByRunIdOrderByOrdinal(id);
         var step = trace.stream().filter(s -> s.status == RunStatus.PENDING).findFirst().orElseThrow();
         if (step.agentSettings == null) return Optional.empty();
@@ -225,10 +226,10 @@ public class ExecutionService {
         var runDeadline = run.startedAt.plusSeconds(ProposalPolicy.MAX_ELAPSED_SECONDS);
         step.planningDeadline = now.plusSeconds(35).isBefore(runDeadline) ? now.plusSeconds(35) : runDeadline;
         step.planningState = "REQUESTED";
-        step.plannerId = "openai-" + run.plannerModel;
+        step.plannerId = run.plannerProvider() + "-" + run.plannerModel;
         run.plannerCalls++; run.reservedPlannerTokens += LivePlanner.TOKEN_RESERVATION;
         event(run, step.nodeId, "PLANNING_REQUESTED", now);
-        return Optional.of(new LivePlanner.Job(step.planningIntentId, run.id, step.nodeId, run.plannerModel, request, step.planningDeadline));
+        return Optional.of(new LivePlanner.Job(step.planningIntentId, run.id, step.nodeId, run.plannerProvider(), run.plannerModel, request, step.planningDeadline));
     }
 
     @Transactional

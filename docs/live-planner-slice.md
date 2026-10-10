@@ -2,7 +2,7 @@
 
 The live planner selects existing read-only tools. Classification still uses the local tool's rules; this slice does not implement model-generated classification or external tickets.
 
-1. Deterministic mode remains the default. OpenAI mode is an explicit server setting, frozen with the model identity on each agent run.
+1. Deterministic mode remains the default. OpenAI or Gemini mode is an explicit server setting, frozen with the model identity on each agent run. A provider mismatch cannot redirect a saved run to another endpoint.
 2. A short transaction persists a unique planning intent, frozen request, deadline and reserved usage before dispatch. The network request runs outside database transactions and locks.
 3. A second transaction accepts only the matching, unresolved intent. It checks cancellation, deadlines, current owner role, complete proposal policy and budgets before local tool execution. Duplicate/late results cannot execute again.
 4. Calls have bounded input, completion tokens, response size and HTTP timeout. Automatic provider/tool retries are disabled. Reported token usage is persisted; reservations remain consumed for unknown remote outcomes.

@@ -1,0 +1,8 @@
+# Run from backend with profiles dev,gemini. Credentials remain in the ignored file.
+spring:
+  config:
+    import: "optional:file:../.env.local[.properties]"
+agentflow:
+  planner:
+    provider: gemini
+    model: ${AGENTFLOW_PLANNER_MODEL:gemini-3.5-flash-lite}

@@ -81,7 +81,7 @@ def main():
             print(f"{step['nodeId']}: {step['plannerId']} proposed {tools}; Java policy {step['policyStatus']}")
     if args.agent:
         print(f"Usage: {run['plannerCalls']} planner calls, {run['toolCalls']} tool calls")
-        if run["mode"] == "OPENAI_PLANNER":
+        if run["mode"] in {"OPENAI_PLANNER", "GEMINI_PLANNER"}:
             print(f"Tokens: {run['plannerTokens']} reported, {run['reservedPlannerTokens']} reserved")
     print(json.dumps(run["context"]["result"], indent=2))
     print(f"PASS: duplicate start reused the run; {len(run['events'])} audit events persisted")

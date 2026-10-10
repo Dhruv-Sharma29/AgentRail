@@ -47,7 +47,7 @@ class LivePlanningApiTest {
         UUID run = start(); executions.advance(run);
         coordinator.advance(run);
         var trace = trace(run);
-        assertThat(trace.path("mode").asText()).isEqualTo("OPENAI_PLANNER");
+        assertThat(trace.path("mode").asText()).isEqualTo(expectedMode());
         assertThat(trace.path("plannerCalls").asInt()).isEqualTo(1);
         assertThat(trace.path("plannerTokens").asInt()).isEqualTo(123);
         assertThat(trace.path("reservedPlannerTokens").asInt()).isEqualTo(18000);
@@ -56,9 +56,11 @@ class LivePlanningApiTest {
         executions.advance(run);
         assertThat(trace(run).path("status").asText()).isEqualTo("SUCCEEDED");
     }
+    String expectedMode() { return "OPENAI_PLANNER"; }
     @Test void duplicateClaimsAndDuplicateResultsDoNotSpendOrExecuteAgain() throws Exception {
         UUID run = start(); executions.advance(run);
         var job = executions.claimPlanning(run).orElseThrow();
+        assertThat(job.provider()).isEqualTo(expectedMode().equals("GEMINI_PLANNER") ? "gemini" : "openai");
         assertThat(executions.claimPlanning(run)).isEmpty();
         executions.completePlanning(job, new LivePlanner.Result(PROPOSAL, 123), null);
         executions.completePlanning(job, new LivePlanner.Result(PROPOSAL, 123), null);
