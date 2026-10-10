@@ -39,7 +39,7 @@ Click **New workflow**, edit the support template, and **Save workflow**. Drag n
 
 Click **Run workflow**, enter an issue and follow its execution trace. At the human checkpoint, open **Review approval**, inspect the frozen action, check the review box and explicitly approve or reject. You can also review your existing terminal-created request in **Approvals**; leave its decision to the person reviewing it. A saved workflow never runs automatically. The default new template uses local actions; the Agent template uses the backend's configured planner and may make paid calls when live planning is enabled.
 
-Vite proxies `/api` and `/actuator` to the loopback backend on 8080. Session cookies and CSRF remain enforced by Java. Credentials and provider keys stay out of the bundle. Stop Vite with Ctrl-C. A production build requires a same-origin API reverse proxy; the production frontend container/ingress is Phase 6.
+Vite proxies `/api` and `/actuator` to the loopback backend on 8080. Session cookies and CSRF remain enforced by Java. Credentials and provider keys stay out of the bundle. Stop Vite with Ctrl-C. The container setup below serves the compiled frontend and API through one origin.
 
 ## Run the first workflow
 
@@ -126,6 +126,8 @@ The local live smoke request returned HTTP 429 and safely executed zero tools. I
 
 ## Test and build
 
+Stop any dev process running `target/agentflow-0.1.0-SNAPSHOT.jar` before rebuilding that same jar, then restart it afterward. Replacing a running Spring Boot archive can break later class loading. `spring-boot:run` and the container runtime have separate launch/build paths.
+
 ```sh
 cd backend
 ./mvnw test      # Graph, API, authentication, ownership, and concurrency tests with H2
@@ -159,13 +161,31 @@ Tests use an explicitly configured Mockito Java agent, avoiding dynamic self-att
 
 ## Local PostgreSQL and containers
 
-Copy `.env.example` to `.env` and set unique DATABASE_PASSWORD and BOOTSTRAP_PASSWORD values. Bootstrap passwords must be 12–72 characters. Then run:
+Requires Docker Desktop with Compose, Python 3, and a running Docker daemon. From the repository root:
 
 ```sh
-docker compose up --build
+python3 scripts/init-local.py
+docker compose up -d --build --wait --wait-timeout 180
 ```
 
-Compose binds API and database ports to loopback and keeps PostgreSQL data in a named volume. Its HTTP session setting is for local use. The default application configuration uses environment-supplied database and bootstrap credentials and Secure cookies; use HTTPS before exposing it remotely. The bootstrap user is created only when the username does not already exist; changing the environment password does not rotate an existing user's password.
+Open [the container workspace](http://127.0.0.1:8090). Read `BOOTSTRAP_USERNAME` and `BOOTSTRAP_PASSWORD` in your private, ignored `.env` to sign in. The initializer generates independent random passwords with file mode 0600 and preserves an existing file. For manual setup use `.env.example`; bootstrap passwords must be 12–72 characters.
+
+Compose serves the compiled React app through Nginx. Only the web port is published, on loopback; the Java API and PostgreSQL are internal. Database history survives `docker compose down` and container recreation in the named volume. This database is separate from development H2; existing H2 history is not imported. Docker defaults to deterministic planning and does not load `.env.local` or make model calls. Your Vite/dev servers can run alongside it.
+
+The HTTP cookie setting is for local use. Public deployment requires a TLS ingress and Secure cookies; it is not configured here. The bootstrap user is created only when the username does not already exist; changing the environment password does not rotate an existing user's password. See [operations and backup/restore](docs/operations.md) before changing an existing database.
+
+To verify the actual deployment in a disposable project:
+
+```sh
+cd frontend
+npm ci
+npx playwright install chromium
+cd ..
+python3 scripts/test_local_setup.py
+python3 scripts/compose-test.py --build --browser
+```
+
+The check uses random project/port names, temporary credentials and its own database volume. It verifies security headers, Java authentication/CSRF, exact approvals, backend replacement, PostgreSQL backup restore, complete stack recreation and seven browser cases. It removes only its own containers/volume. A successful run writes `artifacts/agentflow-demo.webm` and `artifacts/agentflow-execution.png`; those generated artifacts are ignored by Git. [Demo guide](docs/demo-script.md).
 
 Registration, password rotation, login throttling, production ingress, remote-tool reliability, and independent approver roles remain on the implementation plan. The API currently has a single USER role; approver and tool administration roles arrive with those modules. Execution audits cover lifecycle and step outcomes; authentication and administrative audits are future work.
 
@@ -175,8 +195,12 @@ Registration, password rotation, login throttling, production ingress, remote-to
 - [Current architecture](docs/architecture.md)
 - [Phases and acceptance criteria](docs/implementation-plan.md)
 - [Visual workspace acceptance criteria](docs/phase-5-frontend.md)
+- [Container delivery acceptance criteria](docs/phase-6-delivery.md)
+- [Operations and backup/restore](docs/operations.md)
+- [Portfolio demo guide](docs/demo-script.md)
 - [API contract](docs/api-spec.md)
 - [Skill installation and provenance](docs/skills.md)
 - [Verification and review](docs/verification.md)
+- [Delivery security review and remaining dependency findings](docs/security-review.md)
 
 Project-specific skills are under `.agents/skills`. Newly installed global and project skills become discoverable on the next Codex turn.

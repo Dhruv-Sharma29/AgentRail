@@ -58,4 +58,11 @@ Scope: the complete support flow now reaches a human checkpoint and records an a
 3. Connect explicit saved-version starts, retained request keys, step/audit traces, terminal-aware polling and cancellation. Add the exact-payload approval inbox and registered-tool inspection.
 4. Verify with API/graph unit tests, production compilation and a real deterministic backend in Chromium. Exercise conflict preservation, literal hostile text, lost start responses, keyboard editing, modal focus, logout and session expiry. Document startup and add frontend CI.
 
-The next increment is Phase 6: a same-origin frontend/API container deployment, PostgreSQL Compose verification, operational configuration, security/dependency review and a recorded demo. This phase does not introduce external ticket tools, branching, independent approvers or a production ingress.
+## Phase 6 slices — container delivery
+
+1. Test private local credential initialization and the Compose publication boundary, then build the compiled frontend/Nginx container and health-gated Java/PostgreSQL services.
+2. Verify authentication, CSRF, frozen approvals and exact pause/resume through the web proxy. Replace Java while retaining the proxy, restore a PostgreSQL dump into a separate database, and recreate the complete stack without losing its volume.
+3. Run the seven browser cases against deployed static assets/PostgreSQL and retain a support-flow demo recording. Review pinned dependencies, image/configuration boundaries and local versus public deployment limits.
+4. Add deployment checks to CI, document startup, backups, restore, sessions, credentials and a portfolio demo. Keep generated recordings and credentials out of Git.
+
+This phase does not introduce external ticket tools, branching, independent approvers or a public production ingress. Acceptance and limitations are in [phase-6-delivery.md](phase-6-delivery.md).

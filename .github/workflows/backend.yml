@@ -64,3 +64,29 @@ jobs:
         with:
           name: browser-test-results
           path: frontend/test-results/
+  delivery:
+    runs-on: ubuntu-latest
+    needs: [verify, frontend]
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: python3 scripts/test_local_setup.py
+      - name: Container browser, backup and restart acceptance
+        run: python3 scripts/compose-test.py --build --browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: container-demo-and-browser-results
+          retention-days: 7
+          path: |
+            artifacts/
+            frontend/test-results/
