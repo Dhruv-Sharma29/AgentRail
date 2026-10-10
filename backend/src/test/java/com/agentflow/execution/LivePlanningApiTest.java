@@ -147,6 +147,15 @@ class LivePlanningApiTest {
         jdbc.update("update workflow_runs set reserved_planner_tokens=90000 where id=?",run);
         coordinator.advance(run); assertFailed(run,"PLANNER_TOKEN_LIMIT"); verifyNoInteractions(live);
     }
+    @Test void intentDeadlineCannotExtendTheRunDeadline() throws Exception {
+        UUID run=start(); executions.advance(run);
+        when(clock.instant()).thenReturn(NOW.plusSeconds(119));
+        var job=executions.claimPlanning(run).orElseThrow();
+        assertThat(job.deadline()).isEqualTo(NOW.plusSeconds(120));
+        when(clock.instant()).thenReturn(NOW.plusSeconds(121));
+        executions.completePlanning(job,new LivePlanner.Result(PROPOSAL,123),null);
+        assertFailed(run,"RUN_DEADLINE_EXCEEDED");
+    }
     private void assertFailed(UUID run,String code) throws Exception {
         var trace=trace(run); assertThat(trace.path("status").asText()).isEqualTo("FAILED");
         assertThat(trace.path("errorCode").asText()).isEqualTo(code); assertThat(trace.path("toolCalls").asInt()).isZero();

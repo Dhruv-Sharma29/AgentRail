@@ -207,7 +207,8 @@ public class ExecutionService {
         if (step.agentSettings == null) return Optional.empty();
         var now = clock.instant();
         if ("REQUESTED".equals(step.planningState)) {
-            if (!now.isBefore(step.planningDeadline)) failPlanning(run, step, trace, "PLANNING_OUTCOME_UNKNOWN", now);
+            if (!now.isBefore(run.startedAt.plusSeconds(ProposalPolicy.MAX_ELAPSED_SECONDS))) failPlanning(run, step, trace, "RUN_DEADLINE_EXCEEDED", now);
+            else if (!now.isBefore(step.planningDeadline)) failPlanning(run, step, trace, "PLANNING_OUTCOME_UNKNOWN", now);
             return Optional.empty();
         }
         String denial = null;
@@ -221,7 +222,9 @@ public class ExecutionService {
         var state = tree(run.context);
         var request = new Planner.Request(settings.goal(), issue.subject(), issue.body(), state.path("classification").path("category").asText(null), Set.copyOf(settings.allowedTools()));
         step.planningIntentId = UUID.randomUUID(); step.planningRequest = encode(request);
-        step.planningDeadline = now.plusSeconds(35); step.planningState = "REQUESTED";
+        var runDeadline = run.startedAt.plusSeconds(ProposalPolicy.MAX_ELAPSED_SECONDS);
+        step.planningDeadline = now.plusSeconds(35).isBefore(runDeadline) ? now.plusSeconds(35) : runDeadline;
+        step.planningState = "REQUESTED";
         step.plannerId = "openai-" + run.plannerModel;
         run.plannerCalls++; run.reservedPlannerTokens += LivePlanner.TOKEN_RESERVATION;
         event(run, step.nodeId, "PLANNING_REQUESTED", now);
@@ -237,8 +240,8 @@ public class ExecutionService {
         if (!"REQUESTED".equals(step.planningState) || step.status != RunStatus.PENDING) return;
         var now = clock.instant();
         String denial = failure;
-        if (!now.isBefore(step.planningDeadline)) denial = "PLANNING_OUTCOME_UNKNOWN";
-        else if (!now.isBefore(run.startedAt.plusSeconds(ProposalPolicy.MAX_ELAPSED_SECONDS))) denial = "RUN_DEADLINE_EXCEEDED";
+        if (!now.isBefore(run.startedAt.plusSeconds(ProposalPolicy.MAX_ELAPSED_SECONDS))) denial = "RUN_DEADLINE_EXCEEDED";
+        else if (!now.isBefore(step.planningDeadline)) denial = "PLANNING_OUTCOME_UNKNOWN";
         else if (denial == null && (result == null || result.totalTokens() <= 0 || result.totalTokens() > LivePlanner.TOKEN_RESERVATION)) denial = "PLANNER_TOKEN_LIMIT";
         if (denial != null) { failPlanning(run, step, trace, denial, now); return; }
         run.plannerTokens += result.totalTokens();
