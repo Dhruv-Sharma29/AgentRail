@@ -1,6 +1,8 @@
 package com.agentflow.execution;
 
 import com.agentflow.auth.UserRepository;
+import com.agentflow.agent.*;
+import com.agentflow.tools.ToolRegistry;
 import com.agentflow.workflow.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.*;
@@ -28,13 +30,17 @@ public class ExecutionService {
     private final ObjectMapper json;
     private final LocalActions actions;
     private final Clock clock;
+    private final Planner planner;
+    private final ProposalPolicy proposalPolicy;
+    private final ToolRegistry tools;
 
     public ExecutionService(RunRepository runs, NodeExecutionRepository steps, RunEventRepository events,
             WorkflowRepository workflows, WorkflowVersionRepository versions, UserRepository users, ExecutionPlan plan, ObjectMapper json,
-            LocalActions actions, Clock clock) {
+            LocalActions actions, Clock clock, Planner planner, ProposalPolicy proposalPolicy, ToolRegistry tools) {
         this.runs = runs; this.steps = steps; this.events = events; this.workflows = workflows;
         this.versions = versions; this.users = users; this.plan = plan; this.json = json;
         this.actions = actions; this.clock = clock;
+        this.planner = planner; this.proposalPolicy = proposalPolicy; this.tools = tools;
     }
 
     @Transactional
@@ -53,11 +59,15 @@ public class ExecutionService {
         var version = versions.findByWorkflowIdAndNumber(workflowId, request.versionNumber()).orElseThrow(ExecutionService::notFound);
         var ordered = plan.validate(decode(version.getDefinition(), WorkflowDefinition.class));
         var now = clock.instant();
-        var run = runs.saveAndFlush(new WorkflowRun(workflowId, version.getId(), version.getNumber(), owner, request.idempotencyKey(), input, now));
+        var run = new WorkflowRun(workflowId, version.getId(), version.getNumber(), owner, request.idempotencyKey(), input, now);
+        if (ordered.stream().anyMatch(n -> n.agent() != null)) run.mode = "DETERMINISTIC_PLANNER";
+        runs.saveAndFlush(run);
         for (int i = 0; i < ordered.size(); i++) {
             var node = ordered.get(i);
-            steps.save(new NodeExecution(run.id, node.id(), i,
-                    node.type() == WorkflowDefinition.NodeType.TRIGGER ? WorkflowDefinition.Operation.RECEIVE_INPUT : node.operation()));
+            var step = new NodeExecution(run.id, node.id(), i,
+                    node.type() == WorkflowDefinition.NodeType.TRIGGER ? WorkflowDefinition.Operation.RECEIVE_INPUT : node.operation());
+            if (node.agent() != null) step.agentSettings = encode(node.agent());
+            steps.save(step);
         }
         event(run, null, "RUN_CREATED", now);
         return details(run);
@@ -107,9 +117,19 @@ public class ExecutionService {
         var input = step.operation == WorkflowDefinition.Operation.RECEIVE_INPUT ? run.input : run.context;
         String output;
         try {
-            output = encode(actions.execute(step.operation, decode(run.input, IssueInput.class), decode(run.context, com.fasterxml.jackson.databind.node.ObjectNode.class)));
+            if (run.mode.equals("DETERMINISTIC_PLANNER") && !now.isBefore(run.startedAt.plusSeconds(ProposalPolicy.MAX_ELAPSED_SECONDS)))
+                throw new ToolRegistry.Denied("RUN_DEADLINE_EXCEEDED");
+            var issue = decode(run.input, IssueInput.class);
+            var state = decode(run.context, com.fasterxml.jackson.databind.node.ObjectNode.class);
+            output = encode(step.agentSettings == null ? actions.execute(step.operation, issue, state) : executeAgent(run, step, issue, state, now));
+        } catch (org.springframework.dao.DataAccessException | jakarta.persistence.PersistenceException failure) {
+            throw failure;
         } catch (RuntimeException failure) {
-            String code = failure instanceof LocalActions.StepFailure ? failure.getMessage() : "INTERNAL_STEP_ERROR";
+            String code = failure instanceof LocalActions.StepFailure || failure instanceof ToolRegistry.Denied ? failure.getMessage() : "INTERNAL_STEP_ERROR";
+            if (step.agentSettings != null && !"APPROVED".equals(step.policyStatus)) {
+                step.policyStatus = "DENIED"; step.decisionCode = code;
+                toolEvent(run, step.nodeId, "PROPOSAL_DENIED", null, code, now);
+            }
             step.fail(input, code, now);
             trace.stream().filter(s -> s.status == RunStatus.PENDING).forEach(s -> s.cancel(now));
             run.finish(RunStatus.FAILED, now, code);
@@ -126,17 +146,57 @@ public class ExecutionService {
         }
     }
 
+    private com.fasterxml.jackson.databind.node.ObjectNode executeAgent(WorkflowRun run, NodeExecution step, IssueInput issue,
+            com.fasterxml.jackson.databind.node.ObjectNode state, Instant now) {
+        if (run.plannerCalls >= ProposalPolicy.MAX_PLANNER_CALLS) throw new ToolRegistry.Denied("PLANNER_BUDGET_EXHAUSTED");
+        var settings = decode(step.agentSettings, WorkflowDefinition.AgentSettings.class);
+        var allowed = Set.copyOf(settings.allowedTools());
+        var user = users.findById(run.ownerId).orElseThrow();
+        var context = new ToolRegistry.Context(user.getRole(), issue.subject(), issue.body(), state.path("classification").path("category").asText(null));
+        run.plannerCalls++;
+        String raw;
+        try {
+            step.plannerId = planner.id();
+            if (step.plannerId == null || !step.plannerId.matches("[a-zA-Z0-9_.-]{1,64}")) throw new IllegalStateException("Invalid planner identity");
+            raw = planner.propose(new Planner.Request(settings.goal(), issue.subject(), issue.body(), context.category(), allowed));
+        } catch (RuntimeException failure) {
+            if (step.plannerId != null && !step.plannerId.matches("[a-zA-Z0-9_.-]{1,64}")) step.plannerId = null;
+            throw new ToolRegistry.Denied("PLANNER_FAILURE");
+        }
+        event(run, step.nodeId, "PLANNER_PROPOSED", now);
+        var decision = proposalPolicy.validate(raw, allowed, Math.min(settings.maxToolCalls(), ProposalPolicy.MAX_RUN_TOOL_CALLS - run.toolCalls), context);
+        step.proposal = decision.canonicalProposal(); step.policyStatus = "APPROVED"; step.decisionCode = "APPROVED";
+        event(run, step.nodeId, "PROPOSAL_APPROVED", now);
+        var next = state;
+        for (var call : decision.calls()) {
+            var validated = tools.validate(call.tool(), call.arguments(), context);
+            run.toolCalls++;
+            try { next = actions.execute(validated.operation(), issue, next); }
+            catch (RuntimeException failure) {
+                toolEvent(run, step.nodeId, "TOOL_FAILED", call.tool(), "LOCAL_TOOL_FAILURE", now);
+                throw failure;
+            }
+            toolEvent(run, step.nodeId, "TOOL_SUCCEEDED", call.tool(), null, now);
+        }
+        return next;
+    }
+
     private UUID owner(String username) { return users.findByUsername(username).orElseThrow(ExecutionService::notFound).getId(); }
     private static ResponseStatusException notFound() { return new ResponseStatusException(HttpStatus.NOT_FOUND, "Workflow, version or run not found"); }
     private void event(WorkflowRun run, String node, String type, Instant now) {
         events.save(new RunEvent(run.id, Math.toIntExact(events.countByRunId(run.id)), node, type, now));
     }
+    private void toolEvent(WorkflowRun run, String node, String type, String tool, String code, Instant now) {
+        var event = new RunEvent(run.id, Math.toIntExact(events.countByRunId(run.id)), node, type, now);
+        event.toolName = tool; event.decisionCode = code; events.save(event);
+    }
     private Details details(WorkflowRun r) {
         var trace = steps.findByRunIdOrderByOrdinal(r.id).stream().map(s -> new Step(s.nodeId, s.ordinal, s.operation,
-                s.status, s.attempts, tree(s.input), tree(s.output), s.errorCode, s.startedAt, s.finishedAt)).toList();
-        var audit = events.findByRunIdOrderBySequence(r.id).stream().map(e -> new Event(e.sequence, e.nodeId, e.eventType, e.occurredAt)).toList();
-        return new Details(r.id, r.workflowId, r.versionId, r.versionNumber, "DETERMINISTIC", r.status,
-                r.createdAt, r.startedAt, r.finishedAt, r.errorCode, tree(r.input), tree(r.context), trace, audit);
+                s.status, s.attempts, tree(s.input), tree(s.output), s.errorCode, s.startedAt, s.finishedAt,
+                s.plannerId, tree(s.proposal), s.policyStatus, s.decisionCode)).toList();
+        var audit = events.findByRunIdOrderBySequence(r.id).stream().map(e -> new Event(e.sequence, e.nodeId, e.eventType, e.occurredAt, e.toolName, e.decisionCode)).toList();
+        return new Details(r.id, r.workflowId, r.versionId, r.versionNumber, r.mode, r.status,
+                r.createdAt, r.startedAt, r.finishedAt, r.errorCode, tree(r.input), tree(r.context), trace, audit, r.plannerCalls, r.toolCalls);
     }
     private String encode(Object value) {
         try { return json.writeValueAsString(value); }

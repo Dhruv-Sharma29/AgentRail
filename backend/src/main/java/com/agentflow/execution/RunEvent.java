@@ -13,6 +13,8 @@ class RunEvent {
     @Column(updatable = false, length = 64) String nodeId;
     @Column(nullable = false, updatable = false, length = 40) String eventType;
     @Column(nullable = false, updatable = false) Instant occurredAt;
+    @Column(updatable = false, length = 64) String toolName;
+    @Column(updatable = false, length = 64) String decisionCode;
     protected RunEvent() {}
     RunEvent(UUID runId, int sequence, String nodeId, String eventType, Instant now) {
         id = UUID.randomUUID(); this.runId = runId; this.sequence = sequence;

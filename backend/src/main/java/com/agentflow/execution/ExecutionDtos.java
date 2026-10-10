@@ -16,8 +16,9 @@ public final class ExecutionDtos {
             Instant createdAt, Instant startedAt, Instant finishedAt, String errorCode) {}
     public record Details(UUID id, UUID workflowId, UUID versionId, int versionNumber, String mode, RunStatus status,
             Instant createdAt, Instant startedAt, Instant finishedAt, String errorCode,
-            JsonNode input, JsonNode context, List<Step> steps, List<Event> events) {}
+            JsonNode input, JsonNode context, List<Step> steps, List<Event> events, int plannerCalls, int toolCalls) {}
     public record Step(String nodeId, int ordinal, Operation operation, RunStatus status, int attempts,
-            JsonNode input, JsonNode output, String errorCode, Instant startedAt, Instant finishedAt) {}
-    public record Event(int sequence, String nodeId, String eventType, Instant occurredAt) {}
+            JsonNode input, JsonNode output, String errorCode, Instant startedAt, Instant finishedAt,
+            String plannerId, JsonNode proposal, String policyStatus, String decisionCode) {}
+    public record Event(int sequence, String nodeId, String eventType, Instant occurredAt, String toolName, String decisionCode) {}
 }

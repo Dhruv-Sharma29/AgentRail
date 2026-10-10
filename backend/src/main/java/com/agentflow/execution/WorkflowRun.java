@@ -17,6 +17,9 @@ class WorkflowRun {
     @Column(nullable = false, columnDefinition = "text") String context;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 30) RunStatus status;
     @Column(length = 64) String errorCode;
+    @Column(nullable = false, updatable = false, length = 32) String mode = "DETERMINISTIC";
+    @Column(nullable = false) int plannerCalls;
+    @Column(nullable = false) int toolCalls;
     @Column(nullable = false, updatable = false) Instant createdAt;
     Instant startedAt;
     Instant finishedAt;

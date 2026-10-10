@@ -2,6 +2,7 @@ package com.agentflow.execution;
 
 import com.agentflow.workflow.GraphValidator;
 import com.agentflow.workflow.WorkflowDefinition;
+import com.agentflow.tools.ToolRegistry;
 import org.springframework.stereotype.Component;
 import java.util.*;
 import static com.agentflow.workflow.WorkflowDefinition.*;
@@ -17,10 +18,18 @@ public class ExecutionPlan {
         for (var node : definition.nodes()) {
             byId.put(node.id(), node);
             if (node.type() == NodeType.TRIGGER) {
-                if (node.operation() != null && node.operation() != Operation.RECEIVE_INPUT)
+                if (node.agent() != null || (node.operation() != null && node.operation() != Operation.RECEIVE_INPUT))
                     throw new IllegalArgumentException("Trigger operation must receive input");
-            } else if (node.type() != NodeType.ACTION || node.operation() == null || node.operation() == Operation.RECEIVE_INPUT) {
-                throw new IllegalArgumentException("Only explicit local actions are executable in this phase");
+            } else if (node.type() == NodeType.AI_STEP) {
+                var settings = node.agent();
+                if (node.operation() != null || settings == null || settings.goal() == null
+                        || settings.allowedTools() == null || settings.allowedTools().isEmpty() || settings.allowedTools().size() > 2
+                        || settings.allowedTools().stream().anyMatch(t -> t == null || !ToolRegistry.names().contains(t))
+                        || new HashSet<>(settings.allowedTools()).size() != settings.allowedTools().size()
+                        || settings.maxToolCalls() == null || settings.maxToolCalls() < 1 || settings.maxToolCalls() > 3)
+                    throw new IllegalArgumentException("Agent steps require registered tools and bounded settings");
+            } else if (node.type() != NodeType.ACTION || node.agent() != null || node.operation() == null || node.operation() == Operation.RECEIVE_INPUT) {
+                throw new IllegalArgumentException("Only configured agent steps and explicit local actions are executable");
             }
         }
         var next = new HashMap<String, String>();

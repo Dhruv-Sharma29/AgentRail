@@ -12,7 +12,12 @@ class NodeExecution {
     @Column(nullable = false, updatable = false) UUID runId;
     @Column(nullable = false, updatable = false, length = 64) String nodeId;
     @Column(nullable = false, updatable = false) int ordinal;
-    @Enumerated(EnumType.STRING) @Column(nullable = false, updatable = false, length = 40) Operation operation;
+    @Enumerated(EnumType.STRING) @Column(updatable = false, length = 40) Operation operation;
+    @Column(updatable = false, columnDefinition = "text") String agentSettings;
+    @Column(length = 64) String plannerId;
+    @Column(columnDefinition = "text") String proposal;
+    @Column(length = 20) String policyStatus;
+    @Column(length = 64) String decisionCode;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 30) RunStatus status;
     @Column(nullable = false) int attempts;
     @Column(columnDefinition = "text") String input;
