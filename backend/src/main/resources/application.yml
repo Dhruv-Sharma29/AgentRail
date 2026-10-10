@@ -35,6 +35,10 @@ management:
     health:
       show-details: never
 agentflow:
+  github:
+    enabled: ${AGENTFLOW_GITHUB_ENABLED:false}
+    repository: ${AGENTFLOW_GITHUB_REPOSITORY:Dhruv-Sharma29/test}
+    token: ${GITHUB_TOKEN:}
   planner:
     provider: ${AGENTFLOW_PLANNER_PROVIDER:deterministic}
     model: ${AGENTFLOW_PLANNER_MODEL:gpt-4.1-mini-2025-04-14}

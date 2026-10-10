@@ -17,6 +17,11 @@ public class ExecutionPlan {
         var byId = new HashMap<String, Node>();
         for (var node : definition.nodes()) {
             byId.put(node.id(), node);
+            if (node.operation() == Operation.CREATE_TICKET) {
+                if (node.type() != NodeType.ACTION || node.ticket() == null || node.ticket().repository() == null
+                        || !node.ticket().repository().matches(com.agentflow.tools.TicketPolicy.REPOSITORY_PATTERN))
+                    throw new IllegalArgumentException("Ticket creation requires a configured action destination");
+            } else if (node.ticket() != null) throw new IllegalArgumentException("Only ticket actions may configure a destination");
             if (node.type() != NodeType.APPROVAL && node.approval() != null)
                 throw new IllegalArgumentException("Only approval nodes may configure a checkpoint");
             if (node.type() == NodeType.TRIGGER) {
@@ -52,9 +57,13 @@ public class ExecutionPlan {
         }
         if (ordered.size() != definition.nodes().size()) throw new IllegalArgumentException("Execution requires one chain");
         for (int i=0;i<ordered.size();i++) if (ordered.get(i).type()==NodeType.APPROVAL) {
-            if (i+1>=ordered.size() || ordered.get(i+1).type()!=NodeType.ACTION || ordered.get(i+1).operation()!=Operation.RECORD_RESULT)
-                throw new IllegalArgumentException("Approval must immediately precede the local result action");
+            if (i+1>=ordered.size() || ordered.get(i+1).type()!=NodeType.ACTION
+                    || !Set.of(Operation.RECORD_RESULT,Operation.CREATE_TICKET).contains(ordered.get(i+1).operation()))
+                throw new IllegalArgumentException("Approval must immediately precede a result or ticket action");
         }
+        for (int i=0;i<ordered.size();i++) if (ordered.get(i).operation()==Operation.CREATE_TICKET
+                && (i==0 || ordered.get(i-1).type()!=NodeType.APPROVAL || i!=ordered.size()-1))
+            throw new IllegalArgumentException("Ticket creation must be the final action immediately after approval");
         return List.copyOf(ordered);
     }
 }

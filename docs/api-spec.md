@@ -122,7 +122,7 @@ A configured checkpoint omits `operation`/`agent`:
 {"id":"review","type":"APPROVAL","label":"Review result","approval":{"timeoutSeconds":3600}}
 ```
 
-The timeout is 60–86,400 seconds. It must immediately precede an ACTION with `operation: RECORD_RESULT`. This increment approves a local result, not a remote ticket. Java freezes `{targetNodeId, operation, input, context}`, its SHA-256 payloadDigest, run/step/target IDs, owner and fixed requiredRole USER. Both run and approval step wait. Approval time does not consume the 120-second active execution budget.
+The timeout is 60–86,400 seconds. It must immediately precede an ACTION with `operation: RECORD_RESULT` or `CREATE_TICKET`. Ticket creation must be the final step. Java freezes `{targetNodeId, operation, input, context, ticket}` (ticket is null for local actions), its SHA-256 payloadDigest, run/step/target IDs, owner and fixed requiredRole USER. Both run and approval step wait. Approval time does not consume the 120-second active execution budget.
 
 | Method | Route | Behavior |
 | --- | --- | --- |
@@ -145,3 +145,22 @@ An approved action rechecks current role, payload integrity and the exact origin
 Only a Java-owned `LocalActions.TransientFailure` from the explicit pure ACTION allowlist (CLASSIFY_ISSUE, SEARCH_DOCUMENTATION, RECORD_RESULT) schedules a retry. There are at most three total attempts. After failed attempts one/two, the committed step stays PENDING with LOCAL_TRANSIENT_FAILURE and nextAttemptAt: 2/4 seconds plus 0–500 ms jitter. The run stays RUNNING. Early polls do nothing; due polls resume from the prior successful checkpoint. A successful retry clears the safe error and nextAttemptAt; exhausted retries fail the run and cancel later steps. Each schedule records STEP_RETRY_SCHEDULED without exception text.
 
 Schedules, attempts and audits commit together; rollback preserves the prior state. Competing workers share the run lock. Cancellation clears the schedule and prevents future actions. The 120-second active deadline includes retry delays and is checked before dispatch. Approval checks are repeated before retrying its local action. Validation, role/approval denials, unclassified failures, agent batches, provider calls and uncertain remote outcomes are terminal. Database transaction failures retain the prior checkpoint for a later worker poll; they are not counted as committed handler attempts. Built-in handlers currently require no retry in normal operation. No external exactly-once guarantee is implied.
+
+
+## Approved GitHub ticket action
+
+```json
+{"id":"ticket","type":"ACTION","label":"Create GitHub issue","operation":"CREATE_TICKET","ticket":{"repository":"Dhruv-Sharma29/test"}}
+```
+
+This action must be final and immediately after an approval checkpoint. Classification must already exist in the checkpoint. Java builds an exact title/body from the submitted issue and validated classification, adding an immutable node UUID correlation marker. The approval's `payload.ticket` contains `{repository,title,body}`. Models cannot propose this tool through AI steps or change its destination.
+
+`GET /api/tools` includes the action's EXTERNAL_WRITE descriptor. `GET /api/tools/github` requires authentication and returns only `{repository,ready}`. Ready means opt-in configuration and a syntactically present token; it does not prove remote access. No token is returned.
+
+An approved action commits a SENDING ticket intent, one attempt, one tool call and TICKET_DISPATCHED before HTTP. POST creation has a 10-second total wait and 64 KiB response cap, no redirects and no retries. The durable intent deadline is at most 20 seconds, capped by the active run deadline. `tickets` in the owner-only run trace records SENDING, SUCCEEDED, FAILED or UNKNOWN, safe errors, timestamps and confirmed issue number/URL. Run context also records a successful receipt. The receipt URL must be the fixed GitHub host, approved repository and returned issue number.
+
+No fresh worker resends a persisted intent. Lost outcomes expire to TICKET_OUTCOME_UNKNOWN, including intents left in cancelled runs. Authentication errors are TICKET_AUTHENTICATION; definitive API rejection is TICKET_REJECTED. Invalid/oversized/malformed successes and uncertain transport/server errors are unknown. TICKET_CONNECTOR_DISABLED and TICKET_DESTINATION_DENIED prevent dispatch. A new run is a new action and can create another issue; never use it to retry an unknown result.
+
+Cancellation before dispatch prevents creation; after dispatch it cannot retract HTTP. A late receipt remains in `tickets`, with TICKET_RESULT_AFTER_CANCELLATION, while the run remains CANCELLED.
+
+`POST /api/runs/{id}/ticket/reconcile` accepts only `{"issueNumber":42}`. It requires session ownership, CSRF, current USER role and an UNKNOWN intent. Java revalidates the exact approved payload and current destination policy, then GETs that issue in the fixed repository and matches title, body, correlation marker and issue number (pull requests are rejected). It never POSTs another issue. Confirmed reconciliation records TICKET_RECONCILED and may move FAILED to SUCCEEDED; a cancelled run stays cancelled. Repeating an already confirmed issue number is idempotent. Missing/unowned intents are 404; policy or receipt mismatch is 409; denied role/CSRF is 403.

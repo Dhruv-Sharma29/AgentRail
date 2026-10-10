@@ -52,4 +52,15 @@ class ExecutionPlanTest {
         var misplaced=new Node("record",NodeType.ACTION,"Record",Operation.RECORD_RESULT,null,new ApprovalSettings(3600));
         assertThatIllegalArgumentException().isThrownBy(() -> plan.validate(new WorkflowDefinition(List.of(trigger,misplaced),List.of(new Edge("start","record")))));
     }
+
+    @Test void ticketRequiresFinalImmediateApprovalAndCannotBeAnAgentTool() {
+        var ticket=new Node("ticket",NodeType.ACTION,"Create",Operation.CREATE_TICKET,null,null,null,new TicketSettings("Dhruv-Sharma29/test"));
+        var review=new Node("review",NodeType.APPROVAL,"Review",null,null,new ApprovalSettings(3600));
+        assertThat(plan.validate(new WorkflowDefinition(List.of(trigger,review,ticket),List.of(new Edge("start","review"),new Edge("review","ticket"))))).hasSize(3);
+        assertThatIllegalArgumentException().isThrownBy(() -> plan.validate(new WorkflowDefinition(List.of(trigger,ticket),List.of(new Edge("start","ticket")))));
+        var after=new Node("after",NodeType.ACTION,"After",Operation.RECORD_RESULT);
+        assertThatIllegalArgumentException().isThrownBy(() -> plan.validate(new WorkflowDefinition(List.of(trigger,review,ticket,after),List.of(new Edge("start","review"),new Edge("review","ticket"),new Edge("ticket","after")))));
+        var agent=new Node("agent",NodeType.AI_STEP,"Agent",null,new AgentSettings(AgentGoal.CLASSIFY_ISSUE,List.of("create_ticket"),1));
+        assertThatIllegalArgumentException().isThrownBy(() -> plan.validate(new WorkflowDefinition(List.of(trigger,agent),List.of(new Edge("start","agent")))));
+    }
 }

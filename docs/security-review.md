@@ -36,3 +36,12 @@ The patched-image rescan reports four HIGH/CRITICAL package findings in Java (th
 ## Follow-up before public deployment
 
 Upgrade the supported Spring platform and PostgreSQL helper image, rescan, restrict the runtime database role, configure trusted HTTPS/Secure cookies, add account lifecycle/rotation and login throttling, and define backup encryption/retention and independent reviewer roles. Public hosting is outside the current local delivery scope. Reassess the threat boundary before adding arbitrary destinations, retrieved external content, remote tools or effect retries.
+
+
+## Approved GitHub connector review
+
+The new capability is opt-in and constrained to one server-owned repository. Workflow destinations are compared exactly against that setting. Production HTTP uses the fixed HTTPS GitHub API host, never a submitted URL; redirects are disabled and the token is not serialized, logged or returned by readiness. Responses are bounded to 64 KiB, strict about duplicate/trailing JSON, and must match the full approved title/body and exact GitHub issue URL. Pull requests cannot be used for reconciliation. Provider text/errors cannot grant tool permission.
+
+AI step allowlists still exclude `create_ticket`. A final ticket action requires immediate exact-payload approval and current persisted USER role. Run locks serialize approval, cancellation, claim, completion and reconciliation. One committed intent precedes HTTP; network calls hold no database transaction. Lost outcomes do not cause resend. Reconciliation requires owner/session/CSRF and reads an explicit issue in the allowlisted repository. Cancellation after dispatch retains a late receipt instead of claiming to undo an external write. Database checks require complete successful receipts.
+
+Reviewed tests cover policy/destination tampering, role revocation, rejection/expiry, owner and CSRF enforcement, hostile links, malformed/oversized/slow HTTP, competing workers, late cancellation, rollback and complete application restart on PostgreSQL. Tokens and real GitHub issues are excluded from automated checks. Existing public deployment findings and independent-approver limitations remain. Readiness establishes configuration only, not verified remote permissions.

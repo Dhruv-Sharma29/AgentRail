@@ -8,7 +8,8 @@ public record WorkflowDefinition(
         @NotNull @Size(min = 1, max = 50) List<@NotNull @Valid Node> nodes,
         @NotNull @Size(max = 100) List<@NotNull @Valid Edge> edges) {
     public enum NodeType { TRIGGER, AI_STEP, CONDITION, APPROVAL, ACTION }
-    public enum Operation { RECEIVE_INPUT, CLASSIFY_ISSUE, SEARCH_DOCUMENTATION, RECORD_RESULT }
+    public enum Operation { RECEIVE_INPUT, CLASSIFY_ISSUE, SEARCH_DOCUMENTATION, RECORD_RESULT, CREATE_TICKET }
+    public record TicketSettings(@NotBlank @Pattern(regexp = com.agentflow.tools.TicketPolicy.REPOSITORY_PATTERN) String repository) {}
     public enum AgentGoal { CLASSIFY_ISSUE, FIND_DOCUMENTATION }
     public record ApprovalSettings(@NotNull @Min(60) @Max(86400) Integer timeoutSeconds) {}
     public record Position(@NotNull @DecimalMin("-10000") @DecimalMax("10000") Double x,
@@ -24,7 +25,11 @@ public record WorkflowDefinition(
             Operation operation,
             @Valid AgentSettings agent,
             @Valid ApprovalSettings approval,
-            @Valid Position position) {
+            @Valid Position position,
+            @Valid TicketSettings ticket) {
+        public Node(String id, NodeType type, String label, Operation operation, AgentSettings agent, ApprovalSettings approval, Position position) {
+            this(id, type, label, operation, agent, approval, position, null);
+        }
         public Node(String id, NodeType type, String label) { this(id, type, label, null, null, null, null); }
         public Node(String id, NodeType type, String label, Operation operation) { this(id, type, label, operation, null, null, null); }
         public Node(String id, NodeType type, String label, Operation operation, AgentSettings agent) { this(id,type,label,operation,agent,null,null); }

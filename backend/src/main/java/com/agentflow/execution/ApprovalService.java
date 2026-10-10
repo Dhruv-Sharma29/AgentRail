@@ -25,18 +25,25 @@ public class ApprovalService {
     private final UserRepository users;
     private final ObjectMapper json;
     private final Clock clock;
+    private final com.agentflow.tools.TicketPolicy ticketPolicy;
     public ApprovalService(ApprovalRepository approvals,RunRepository runs,NodeExecutionRepository steps,RunEventRepository events,
-            UserRepository users,ObjectMapper json,Clock clock) {
+            UserRepository users,ObjectMapper json,Clock clock,com.agentflow.tools.TicketPolicy ticketPolicy) {
         this.approvals=approvals; this.runs=runs; this.steps=steps; this.events=events; this.users=users; this.json=json; this.clock=clock;
+        this.ticketPolicy=ticketPolicy;
     }
-    record ActionPayload(String targetNodeId,WorkflowDefinition.Operation operation,ExecutionDtos.IssueInput input,JsonNode context) {}
+    record ActionPayload(String targetNodeId,WorkflowDefinition.Operation operation,ExecutionDtos.IssueInput input,JsonNode context,
+            com.agentflow.tools.TicketPolicy.Arguments ticket) {}
 
     void pause(WorkflowRun run,NodeExecution step,List<NodeExecution> trace,Instant now) {
         var target=trace.stream().filter(s -> s.ordinal==step.ordinal+1).findFirst().orElseThrow();
-        if(target.operation!=WorkflowDefinition.Operation.RECORD_RESULT || target.agentSettings!=null || target.approvalSettings!=null)
+        if(!Set.of(WorkflowDefinition.Operation.RECORD_RESULT,WorkflowDefinition.Operation.CREATE_TICKET).contains(target.operation)
+                || target.agentSettings!=null || target.approvalSettings!=null)
             throw new ToolRegistry.Denied("APPROVAL_INVALID_TARGET");
         var settings=read(step.approvalSettings,WorkflowDefinition.ApprovalSettings.class);
-        var payload=new ActionPayload(target.nodeId,target.operation,read(run.input,ExecutionDtos.IssueInput.class),read(run.context,JsonNode.class));
+        var input=read(run.input,ExecutionDtos.IssueInput.class); var context=read(run.context,JsonNode.class);
+        var ticket=target.operation==WorkflowDefinition.Operation.CREATE_TICKET
+                ? ticketPolicy.propose(target.id,read(target.ticketSettings,WorkflowDefinition.TicketSettings.class),input,context) : null;
+        var payload=new ActionPayload(target.nodeId,target.operation,input,context,ticket);
         approvals.save(new ApprovalRequest(run.id,run.ownerId,step.id,target.id,step.nodeId,target.nodeId,write(payload),now,now.plusSeconds(settings.timeoutSeconds())));
         step.pause(run.context,now); run.status=RunStatus.WAITING_FOR_APPROVAL;
         event(run,step.nodeId,"APPROVAL_REQUESTED",now);
@@ -52,7 +59,7 @@ public class ApprovalService {
             approval.decide(CANCELLED,null,now); event(run,approval.nodeId(),"APPROVAL_CANCELLED",now);
         }
     }
-    void validateAction(WorkflowRun run,NodeExecution target) {
+    com.agentflow.tools.TicketPolicy.Arguments validateAction(WorkflowRun run,NodeExecution target) {
         var approval=approvals.findByTargetNodeExecutionId(target.id).orElseThrow(() -> new ToolRegistry.Denied("APPROVAL_REQUIRED"));
         if(approval.status()!=APPROVED) throw new ToolRegistry.Denied("APPROVAL_REQUIRED");
         requireRole(run.ownerId);
@@ -62,6 +69,11 @@ public class ApprovalService {
                 || !payload.targetNodeId().equals(target.nodeId) || !approval.targetNodeId().equals(target.nodeId)
                 || payload.operation()!=target.operation || !payload.input().equals(read(run.input,ExecutionDtos.IssueInput.class))
                 || !payload.context().equals(read(run.context,JsonNode.class))) throw new ToolRegistry.Denied("APPROVAL_PAYLOAD_CHANGED");
+        if(target.operation==WorkflowDefinition.Operation.CREATE_TICKET) {
+            var expected=ticketPolicy.propose(target.id,read(target.ticketSettings,WorkflowDefinition.TicketSettings.class),payload.input(),payload.context());
+            if(!expected.equals(payload.ticket())) throw new ToolRegistry.Denied("APPROVAL_PAYLOAD_CHANGED");
+        } else if(payload.ticket()!=null) throw new ToolRegistry.Denied("APPROVAL_PAYLOAD_CHANGED");
+        return payload.ticket();
     }
     @Transactional(readOnly=true)
     public List<ApprovalDtos.View> trace(UUID run) { return approvals.findByRunIdOrderByCreatedAt(run).stream().map(this::view).toList(); }

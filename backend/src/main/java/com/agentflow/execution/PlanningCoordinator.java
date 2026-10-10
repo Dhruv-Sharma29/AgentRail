@@ -10,11 +10,14 @@ import java.util.UUID;
 public class PlanningCoordinator {
     private final ExecutionService executions;
     private final ObjectProvider<LivePlanner> planners;
-    public PlanningCoordinator(ExecutionService executions, ObjectProvider<LivePlanner> planners) {
+    private final TicketCoordinator tickets;
+    public PlanningCoordinator(ExecutionService executions, ObjectProvider<LivePlanner> planners,TicketCoordinator tickets) {
         this.executions = executions; this.planners = planners;
+        this.tickets=tickets;
     }
     public void advance(UUID run) {
         if (TransactionSynchronizationManager.isActualTransactionActive()) throw new IllegalStateException("Planning dispatch requires no transaction");
+        if(tickets.advance(run)) return;
         var claimed = executions.claimPlanning(run);
         if (claimed.isEmpty()) { executions.advance(run); return; }
         var job = claimed.get();

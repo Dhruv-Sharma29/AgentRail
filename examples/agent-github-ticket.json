@@ -1,0 +1,72 @@
+{
+  "name": "Approved GitHub support ticket",
+  "description": "Classify and retrieve documentation, then review the exact issue before creating it in Dhruv-Sharma29/test.",
+  "definition": {
+    "nodes": [
+      {
+        "id": "receive",
+        "type": "TRIGGER",
+        "label": "Receive issue"
+      },
+      {
+        "id": "classify",
+        "type": "AI_STEP",
+        "label": "Propose classification",
+        "agent": {
+          "goal": "CLASSIFY_ISSUE",
+          "allowedTools": [
+            "classify_issue"
+          ],
+          "maxToolCalls": 1
+        }
+      },
+      {
+        "id": "search",
+        "type": "AI_STEP",
+        "label": "Propose documentation lookup",
+        "agent": {
+          "goal": "FIND_DOCUMENTATION",
+          "allowedTools": [
+            "search_documentation"
+          ],
+          "maxToolCalls": 1
+        }
+      },
+      {
+        "id": "review",
+        "type": "APPROVAL",
+        "label": "Review proposed result",
+        "approval": {
+          "timeoutSeconds": 3600
+        }
+      },
+      {
+        "id": "record",
+        "type": "ACTION",
+        "label": "Create GitHub issue",
+        "operation": "CREATE_TICKET",
+        "ticket": {
+          "repository": "Dhruv-Sharma29/test"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "receive",
+        "target": "classify"
+      },
+      {
+        "source": "classify",
+        "target": "search"
+      },
+      {
+        "source": "search",
+        "target": "review"
+      },
+      {
+        "source": "review",
+        "target": "record"
+      }
+    ]
+  }
+}

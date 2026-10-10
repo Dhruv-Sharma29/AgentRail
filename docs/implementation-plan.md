@@ -66,3 +66,8 @@ Scope: the complete support flow now reaches a human checkpoint and records an a
 4. Add deployment checks to CI, document startup, backups, restore, sessions, credentials and a portfolio demo. Keep generated recordings and credentials out of Git.
 
 This phase does not introduce external ticket tools, branching, independent approvers or a public production ingress. Acceptance and limitations are in [phase-6-delivery.md](phase-6-delivery.md).
+
+
+## Approved GitHub ticket increment
+
+Implement the opt-in `Dhruv-Sharma29/test` connector after the Console theme. Exact-payload approvals, code-owned destination policy, unique durable intents, bounded network calls outside transactions, no creation retries, late cancellation receipts and explicit read-only reconciliation extend the existing support flow. The editor, approval inbox, tool readiness and trace consume the same server contract. [Acceptance criteria](github-ticket-tool.md).

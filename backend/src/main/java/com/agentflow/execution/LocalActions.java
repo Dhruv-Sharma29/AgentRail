@@ -16,6 +16,7 @@ public class LocalActions {
     public ObjectNode execute(Operation operation, IssueInput input, ObjectNode state) {
         var next = state.deepCopy();
         switch (operation) {
+            case CREATE_TICKET -> throw new StepFailure("REMOTE_TOOL_REQUIRES_DISPATCH");
             case RECEIVE_INPUT -> next.set("issue", json.valueToTree(input));
             case CLASSIFY_ISSUE -> {
                 require(next.has("issue"), "MISSING_ISSUE");

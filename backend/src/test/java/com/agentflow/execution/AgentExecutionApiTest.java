@@ -126,7 +126,7 @@ class AgentExecutionApiTest {
     @Test void toolCatalogRequiresLoginAndCannotBeRegisteredThroughApi() throws Exception {
         mvc.perform(get("/api/tools")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/tools").with(user("alice"))).andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2)).andExpect(jsonPath("$[0].risk").value("READ_ONLY"))
+                .andExpect(jsonPath("$.length()").value(3)).andExpect(jsonPath("$[0].risk").value("READ_ONLY"))
                 .andExpect(jsonPath("$[0].argumentSchema.additionalProperties").value(false));
         mvc.perform(post("/api/tools").with(user("alice")).with(csrf())).andExpect(status().isMethodNotAllowed());
     }

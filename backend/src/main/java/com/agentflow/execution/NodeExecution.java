@@ -15,6 +15,7 @@ class NodeExecution {
     @Enumerated(EnumType.STRING) @Column(updatable = false, length = 40) Operation operation;
     @Column(updatable = false, columnDefinition = "text") String agentSettings;
     @Column(updatable = false, columnDefinition = "text") String approvalSettings;
+    @Column(updatable = false, columnDefinition = "text") String ticketSettings;
     @Column(length = 64) String plannerId;
     @Column(columnDefinition = "text") String proposal;
     @Column(length = 20) String policyStatus;

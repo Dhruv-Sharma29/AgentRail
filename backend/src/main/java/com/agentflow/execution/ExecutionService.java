@@ -39,17 +39,19 @@ public class ExecutionService {
     private final ProposalPolicy proposalPolicy;
     private final ToolRegistry tools;
     private final ApprovalService approvals;
+    private final TicketRepository tickets;
     @Value("${agentflow.planner.provider:deterministic}") private String provider;
     @Value("${agentflow.planner.model:gpt-4.1-mini-2025-04-14}") private String model;
 
     public ExecutionService(RunRepository runs, NodeExecutionRepository steps, RunEventRepository events,
             WorkflowRepository workflows, WorkflowVersionRepository versions, UserRepository users, ExecutionPlan plan, ObjectMapper json,
-            LocalActions actions, Clock clock, Planner planner, ProposalPolicy proposalPolicy, ToolRegistry tools, ApprovalService approvals) {
+            LocalActions actions, Clock clock, Planner planner, ProposalPolicy proposalPolicy, ToolRegistry tools, ApprovalService approvals,TicketRepository tickets) {
         this.runs = runs; this.steps = steps; this.events = events; this.workflows = workflows;
         this.versions = versions; this.users = users; this.plan = plan; this.json = json;
         this.actions = actions; this.clock = clock;
         this.planner = planner; this.proposalPolicy = proposalPolicy; this.tools = tools;
         this.approvals = approvals;
+        this.tickets = tickets;
     }
 
     @Transactional
@@ -81,6 +83,7 @@ public class ExecutionService {
                     node.type() == WorkflowDefinition.NodeType.TRIGGER ? WorkflowDefinition.Operation.RECEIVE_INPUT : node.operation());
             if (node.agent() != null) step.agentSettings = encode(node.agent());
             if (node.approval() != null) step.approvalSettings = encode(node.approval());
+            if (node.ticket() != null) step.ticketSettings = encode(node.ticket());
             steps.save(step);
         }
         event(run, null, "RUN_CREATED", now);
@@ -107,7 +110,8 @@ public class ExecutionService {
         if (run.status.terminal()) throw new ResponseStatusException(HttpStatus.CONFLICT, "A finished run cannot be cancelled");
         var now = clock.instant();
         approvals.cancelPending(run,now);
-        steps.findByRunIdOrderByOrdinal(id).stream().filter(s -> s.status == RunStatus.PENDING || s.status==RunStatus.WAITING_FOR_APPROVAL).forEach(s -> {
+        steps.findByRunIdOrderByOrdinal(id).stream().filter(s -> s.status == RunStatus.PENDING || s.status==RunStatus.WAITING_FOR_APPROVAL
+                  || (s.operation==WorkflowDefinition.Operation.CREATE_TICKET && s.status==RunStatus.RUNNING)).forEach(s -> {
             s.cancel(now); if ("REQUESTED".equals(s.planningState)) s.planningState = "ABANDONED";
         });
         run.finish(RunStatus.CANCELLED, now, null);
@@ -131,6 +135,9 @@ public class ExecutionService {
             event(run, null, "RUN_STARTED", now);
         }
         var trace = steps.findByRunIdOrderByOrdinal(id);
+        if(trace.stream().anyMatch(s -> s.operation==WorkflowDefinition.Operation.CREATE_TICKET
+                  && (s.status==RunStatus.RUNNING || s.status==RunStatus.PENDING)
+                  && trace.stream().filter(p -> p.ordinal<s.ordinal).allMatch(p -> p.status==RunStatus.SUCCEEDED))) return;
         var step = trace.stream().filter(s -> s.status == RunStatus.PENDING).findFirst().orElseThrow();
         if (run.livePlanning() && step.agentSettings != null) return;
         var input = step.operation == WorkflowDefinition.Operation.RECEIVE_INPUT ? run.input : run.context;
@@ -311,7 +318,8 @@ public class ExecutionService {
                 s.plannerId, tree(s.proposal), s.policyStatus, s.decisionCode, s.planningState, s.planningDeadline, s.nextAttemptAt)).toList();
         var audit = events.findByRunIdOrderBySequence(r.id).stream().map(e -> new Event(e.sequence, e.nodeId, e.eventType, e.occurredAt, e.toolName, e.decisionCode)).toList();
         return new Details(r.id, r.workflowId, r.versionId, r.versionNumber, r.mode, r.status,
-                r.createdAt, r.startedAt, r.finishedAt, r.errorCode, tree(r.input), tree(r.context), trace, audit, r.plannerCalls, r.toolCalls, r.reservedPlannerTokens, r.plannerTokens, approvals.trace(r.id));
+                r.createdAt, r.startedAt, r.finishedAt, r.errorCode, tree(r.input), tree(r.context), trace, audit, r.plannerCalls, r.toolCalls, r.reservedPlannerTokens, r.plannerTokens,
+                approvals.trace(r.id),tickets.findByRunId(r.id).map(t -> List.of(t.view())).orElseGet(List::of));
     }
     private String encode(Object value) {
         try { return json.writeValueAsString(value); }

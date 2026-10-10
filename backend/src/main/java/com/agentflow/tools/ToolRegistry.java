@@ -54,7 +54,11 @@ public class ToolRegistry {
                     schema(Map.of("subject", Map.of("type", "string", "minLength", 1, "maxLength", 200),
                                   "body", Map.of("type", "string", "minLength", 1, "maxLength", 4000)))),
                 new Definition("search_documentation", "Retrieve one entry from the built-in documentation catalog", "READ_ONLY", Set.of("USER"),
-                    schema(Map.of("category", Map.of("type", "string", "enum", List.of("ACCOUNT", "BILLING", "GENERAL"))))));
+                    schema(Map.of("category", Map.of("type", "string", "enum", List.of("ACCOUNT", "BILLING", "GENERAL"))))),
+                new Definition("create_ticket", "Create a GitHub issue only as a final action after exact-payload approval; unavailable to AI steps", "EXTERNAL_WRITE", Set.of("USER"),
+                    schema(Map.of("repository",Map.of("type","string","pattern",TicketPolicy.REPOSITORY_PATTERN),
+                        "title",Map.of("type","string","minLength",1,"maxLength",200),
+                        "body",Map.of("type","string","minLength",1,"maxLength",8000)))));
     }
     private static Map<String, Object> schema(Map<String, Object> properties) {
         return Map.of("type", "object", "additionalProperties", false, "required", properties.keySet().stream().sorted().toList(), "properties", properties);
