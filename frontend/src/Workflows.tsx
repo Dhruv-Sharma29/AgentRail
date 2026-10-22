@@ -26,31 +26,12 @@ export function Workflows({
     <>
       <div className="page-heading">
         <div>
-          <span className="eyebrow">DESIGN → EXECUTE → REVIEW</span>
           <h1>Your workflows</h1>
-          <p>
-            A place for thoughtful automation. Build once, follow every step.
-          </p>
+          <p>Manage workflow definitions, versions, and runs.</p>
         </div>
         <button className="primary" onClick={create}>
           <Plus size={17} />
           New workflow
-        </button>
-      </div>
-      <div className="workspace-banner">
-        <div className="banner-icon">
-          <GitBranch size={26} />
-        </div>
-        <div>
-          <h2>A little structure. A lot of possibility.</h2>
-          <p>
-            Start with support intake, connect your steps, and put a review
-            where it matters.
-          </p>
-        </div>
-        <button onClick={create}>
-          Build a workflow
-          <ArrowUpRight size={18} />
         </button>
       </div>
       <div className="section-heading">
@@ -71,8 +52,8 @@ export function Workflows({
       ) : resource.data?.items.length === 0 ? (
         <div className="empty">
           <Layers size={32} />
-          <h3>Your first flow starts here.</h3>
-          <p>Create a workflow and connect the steps that do the work.</p>
+          <h3>No workflows yet</h3>
+          <p>Create a workflow to configure and run your first process.</p>
           <button onClick={create}>Create workflow</button>
         </div>
       ) : (
@@ -94,7 +75,7 @@ export function Workflows({
               <p>{workflow.description || "No description yet."}</p>
               <div className="card-bottom">
                 <span>Updated {date(workflow.updatedAt)}</span>
-                <span>Open flow →</span>
+                <span>Open workflow →</span>
               </div>
             </button>
           ))}

@@ -1,4 +1,4 @@
-name: AgentFlow
+name: AgentRail
 on:
   push:
   pull_request:

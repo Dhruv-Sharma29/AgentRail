@@ -15,7 +15,7 @@ test("pipeline preview pauses, respects reduced motion and fits mobile", async (
   });
   await page.goto("/");
   const preview = page.getByRole("region", {
-    name: "AgentFlow workflow preview",
+    name: "AgentRail workflow preview",
   });
   await expect(preview).toBeVisible();
   await expect(

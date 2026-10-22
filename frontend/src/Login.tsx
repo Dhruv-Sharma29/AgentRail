@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, type FormEvent } from "react";
-import { ArrowRight, ShieldCheck } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { api, message } from "./api";
 import type { User } from "./types";
 import { ErrorNotice, Logo } from "./ui";
@@ -33,19 +33,16 @@ export function Login({ signedIn }: { signedIn: (user: User) => void }) {
       <section className="login-story">
         <div className="brand">
           <Logo />
-          AgentFlow<span className="brand-tag">WORKSPACE</span>
+          AgentRail
         </div>
         <div className="story-intro">
-          <span className="eyebrow">INTELLIGENCE, WITH INTENTION</span>
           <h1>
-            From a good idea
+            Agent workflows.
             <br />
-            to a reliable flow.
+            Controlled execution.
           </h1>
           <p>
-            Connect your steps. Give agents a clear purpose.
-            <br />
-            Stay in control of every action.
+            Design workflows, review proposed actions, and inspect every result.
           </p>
         </div>
         <Suspense
@@ -53,20 +50,15 @@ export function Login({ signedIn }: { signedIn: (user: User) => void }) {
         >
           <EnterpriseAIPipeline />
         </Suspense>
-        <small>
-          <ShieldCheck size={17} />
-          Every action leaves a trace.
-        </small>
       </section>
       <section className="login-panel">
         <div className="login-form">
           <div className="brand login-mobile-brand">
             <Logo />
-            AgentFlow
+            AgentRail
           </div>
-          <span className="eyebrow">YOUR WORKFLOW WORKSPACE</span>
-          <h2>Welcome back.</h2>
-          <p>Sign in to build, run, and review your workflows.</p>
+          <h2>Sign in</h2>
+          <p>Access your workflow workspace.</p>
           <form onSubmit={submit}>
             <label>
               Username
@@ -94,11 +86,10 @@ export function Login({ signedIn }: { signedIn: (user: User) => void }) {
             </button>
           </form>
           {import.meta.env.DEV && (
-            <div className="dev-hint">
-              Local development account
-              <br />
+            <details className="dev-hint">
+              <summary>Local development account</summary>
               <code>demo</code> / <code>demo-local-only</code>
-            </div>
+            </details>
           )}
         </div>
       </section>

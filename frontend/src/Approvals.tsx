@@ -34,11 +34,8 @@ export function Approvals({
     <>
       <div className="page-heading">
         <div>
-          <span className="eyebrow">A HUMAN IN THE LOOP</span>
           <h1>Approval inbox</h1>
-          <p>
-            Good automation knows when to pause. The next action is your call.
-          </p>
+          <p>Review the exact action before execution continues.</p>
         </div>
         <button onClick={inbox.reload}>
           <RefreshCw size={15} />
@@ -81,7 +78,7 @@ export function Approvals({
             inbox.data?.items.length === 0 && (
               <div className="empty">
                 <ShieldCheck size={32} />
-                <h3>Nothing waiting on you.</h3>
+                <h3>No pending approvals</h3>
                 <p>Actions that need your review will appear here.</p>
               </div>
             )

@@ -89,7 +89,7 @@ export function TicketResult({
       {ticket.status === "UNKNOWN" && (
         <>
           <p className="policy-note">
-            GitHub may have created the issue. AgentFlow will not send another
+            GitHub may have created the issue. AgentRail will not send another
             creation request.
           </p>
           <p className="hint">

@@ -1,4 +1,4 @@
-import { Blocks, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { api } from "./api";
 import { useResource } from "./useResource";
 import type { Tool, TicketConnector } from "./types";
@@ -22,16 +22,9 @@ export function Tools() {
     <>
       <div className="page-heading">
         <div>
-          <span className="eyebrow">APPROVED CAPABILITIES</span>
           <h1>Tool registry</h1>
-          <p>
-            A clear boundary for your agents. Only registered tools can be
-            proposed.
-          </p>
+          <p>Inspect registered capabilities and their execution policies.</p>
         </div>
-        <span className="flow-icon">
-          <Blocks size={24} />
-        </span>
       </div>
       <ErrorNotice>{resource.error || connector.error}</ErrorNotice>
       <article className="tool-card connector-status">
@@ -49,10 +42,7 @@ export function Tools() {
         </p>
         {!connector.data?.ready && (
           <p className="hint">
-            On the server, set AGENTFLOW_GITHUB_ENABLED=true and configure
-            GITHUB_TOKEN in your ignored environment file. The token needs
-            Issues write access for this repository. Restart the backend after
-            configuration.
+            GitHub issue creation is not configured for this workspace.
           </p>
         )}
       </article>

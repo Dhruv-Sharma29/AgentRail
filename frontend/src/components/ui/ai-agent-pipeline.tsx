@@ -60,7 +60,7 @@ export default function EnterpriseAIPipeline() {
   return (
     <LazyMotion features={domAnimation}>
       <section
-        aria-label="AgentFlow workflow preview"
+        aria-label="AgentRail workflow preview"
         className="@container w-full max-w-[660px] overflow-hidden rounded-2xl border border-[#9aebbb]/20 bg-[#101618] text-[#edf2f0] shadow-[0_20px_70px_-35px_#050909]"
       >
         <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">

@@ -58,7 +58,7 @@ def main():
             compose("up", "-d", "--wait", "--wait-timeout", "180")
             base = f"http://127.0.0.1:{port}"
             with urllib.request.urlopen(base, timeout=10) as response:
-                assert "AgentFlow" in response.read().decode()
+                assert "AgentRail" in response.read().decode()
                 assert "script-src 'self'" in response.headers["Content-Security-Policy"]
                 assert response.headers["X-Content-Type-Options"] == "nosniff"
             for path, expected in [("/api/auth/me", 401), ("/actuator/env", 404)]:

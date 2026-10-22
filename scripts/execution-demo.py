@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the deterministic support workflow against a running local AgentFlow API."""
+"""Run the deterministic support workflow against a running local AgentRail API."""
 import argparse
 import http.cookiejar
 import json

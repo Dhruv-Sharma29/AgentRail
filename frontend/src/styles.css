@@ -201,12 +201,6 @@ textarea {
   height: 36px;
   border-radius: 7px;
 }
-.brand-tag {
-  font-size: 8px;
-  letter-spacing: 1.5px;
-  margin-left: 10px;
-  color: var(--muted-foreground);
-}
 .app-shell {
   display: flex;
   min-height: 100vh;
@@ -224,28 +218,11 @@ textarea {
 .sidebar .brand {
   padding: 0 8px;
 }
-.workspace-select {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  padding: 18px 7px;
-  margin: 30px 0 28px;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  font-size: 11px;
-}
-.workspace-select small,
 .user-box small {
   display: block;
   margin-top: 5px;
   font-size: 10px;
   color: var(--muted-foreground);
-}
-.workspace-avatar {
-  padding: 8px;
-  background: var(--raised);
-  border-radius: 8px;
-  font-size: 10px;
 }
 .nav-caption {
   font-size: 9px;
@@ -271,26 +248,6 @@ textarea {
 .sidebar nav button.active {
   background: var(--secondary);
   color: var(--primary);
-}
-.nav-mark {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--primary);
-  margin-left: auto;
-}
-.sidebar-note {
-  margin-top: auto;
-  padding: 24px 12px 28px;
-}
-.sidebar-note p {
-  font-size: 17px;
-  line-height: 1.6;
-  color: var(--muted-foreground);
-  margin: 12px 0;
-}
-.sidebar-note .eyebrow {
-  font-size: 8px;
 }
 .user-box {
   display: flex;
@@ -367,42 +324,6 @@ textarea {
 .page-heading p {
   font-size: 12px;
   margin-top: 10px;
-}
-.workspace-banner {
-  background: var(--secondary);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 24px;
-  display: flex;
-  gap: 18px;
-  align-items: center;
-  margin-bottom: 32px;
-}
-.banner-icon {
-  width: 54px;
-  height: 54px;
-  flex-shrink: 0;
-  border: 1px solid var(--border);
-  border-radius: 15px;
-  display: grid;
-  place-items: center;
-  background: var(--raised);
-  color: var(--primary);
-}
-.workspace-banner h2 {
-  font-size: 18px;
-  margin-bottom: 6px;
-}
-.workspace-banner p {
-  font-size: 11px;
-  color: var(--muted-foreground);
-}
-.workspace-banner button {
-  margin-left: auto;
-  background: transparent;
-  border: 0;
-  white-space: nowrap;
-  font-size: 11px;
 }
 .section-heading {
   display: flex;
@@ -584,12 +505,15 @@ textarea {
 .login-story {
   background: var(--card);
   color: var(--foreground);
-  padding: 28px clamp(28px, 4vw, 65px);
+  padding: 40px clamp(28px, 4vw, 65px);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 18px;
+  justify-content: center;
+  gap: 32px;
   min-height: 100vh;
+}
+.login-story > .brand {
+  margin-bottom: 8px;
 }
 .login-story h1 {
   font-size: clamp(34px, 3.4vw, 44px);
@@ -601,11 +525,6 @@ textarea {
   color: var(--muted-foreground);
   font-size: 14px;
   line-height: 1.9;
-}
-.login-story small {
-  display: flex;
-  gap: 9px;
-  align-items: center;
 }
 .pipeline-placeholder {
   min-height: 320px;
@@ -625,6 +544,7 @@ textarea {
   display: none;
 }
 .login-panel {
+  border-left: 1px solid var(--border);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -658,6 +578,12 @@ textarea {
   margin-top: 32px;
   padding-top: 16px;
   line-height: 1.8;
+}
+.dev-hint summary {
+  cursor: pointer;
+}
+.dev-hint[open] summary {
+  margin-bottom: 8px;
 }
 .json {
   border: 1px solid var(--border);
@@ -694,9 +620,6 @@ form .fields {
   .workflow-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .workspace-banner button {
-    display: none;
-  }
 }
 @media (max-width: 800px) {
   .sidebar {
@@ -708,9 +631,7 @@ form .fields {
     padding: 0;
     justify-content: center;
   }
-  .workspace-select,
   .nav-caption,
-  .sidebar-note,
   .user-box > div,
   .user-box > .user-avatar {
     display: none;
@@ -724,9 +645,6 @@ form .fields {
   }
   .sidebar nav svg {
     flex-shrink: 0;
-  }
-  .nav-mark {
-    display: none;
   }
   .user-box {
     margin-top: auto;
@@ -751,12 +669,6 @@ form .fields {
   .page-heading h1 {
     font-size: 27px;
   }
-  .workspace-banner {
-    padding: 18px;
-  }
-  .workspace-banner p {
-    display: none;
-  }
   .workflow-grid {
     grid-template-columns: 1fr;
   }
@@ -769,8 +681,7 @@ form .fields {
     order: 2;
   }
   .login-story .brand,
-  .login-story .story-intro,
-  .login-story small {
+  .login-story .story-intro {
     display: none;
   }
   .login-mobile-brand {
@@ -778,6 +689,7 @@ form .fields {
     margin-bottom: 32px;
   }
   .login-panel {
+    border-left: 0;
     min-height: 100vh;
   }
 }
@@ -1311,6 +1223,36 @@ td button {
   display: block;
   margin-top: 5px;
 }
+.operations-updated {
+  margin-bottom: 16px;
+}
+.operations-summary strong {
+  font-size: 24px;
+}
+.operations-list {
+  margin: 16px 0;
+}
+.operations-list > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.operations-list dt {
+  color: var(--muted-foreground);
+}
+.operations-list dd {
+  font-variant-numeric: tabular-nums;
+}
+.operations-attention p {
+  margin: 16px 0;
+}
+.operations-attention hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 24px 0;
+}
 .approval-banner {
   display: flex;
   align-items: center;
@@ -1622,10 +1564,6 @@ td button {
   height: 25px;
   background: transparent;
   color: var(--primary);
-}
-.workspace-select,
-.sidebar-note {
-  display: none;
 }
 .nav-caption {
   margin-top: 40px;
