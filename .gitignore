@@ -1,18 +1,37 @@
+# Local configuration and secrets
 .env
 .env.*
 !.env.example
+.backups/
+
+# Backend
 backend/target/
 backend/data/
-frontend/node_modules/
-frontend/dist/
-.DS_Store
-*.log
-.idea/
-.vscode/
-__pycache__/
 
+# Frontend
+node_modules/
+frontend/dist/
+frontend/coverage/
 frontend/test-results/
 frontend/playwright-report/
+frontend/blob-report/
+*.tsbuildinfo
 
+# Python
+__pycache__/
+*.pyc
+
+# Generated demo, scan and test output
 artifacts/
-.backups/
+
+# Editors and OS
+.idea/
+.run/
+.vscode/
+*.iml
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

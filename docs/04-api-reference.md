@@ -1,4 +1,6 @@
-# AgentFlow API
+# 04 — API reference
+
+This is the implemented REST contract. Routes use the same origin as the web app: Vite proxies them in development and Nginx proxies them in Compose. The direct development backend URL below is useful for API clients.
 
 Base URL: `http://127.0.0.1:8080`. All routes except CSRF, login, and health require a session. All mutations, including login and logout, require a CSRF token. JSON rejects unknown properties.
 
@@ -10,7 +12,7 @@ Base URL: `http://127.0.0.1:8080`. All routes except CSRF, login, and health req
 4. `GET /api/auth/me` returns `{username, roles}`.
 5. `POST /api/auth/logout` returns 204 and invalidates the session.
 
-Cookies are HttpOnly, SameSite=Lax, and Secure by default. The loopback-only dev profile and local Compose configuration turn Secure off for local HTTP. Production requires HTTPS and Secure cookies. No browser token storage or CORS policy is needed until the frontend exists; the planned client will use the same origin or a development proxy.
+Cookies are HttpOnly, SameSite=Lax, and Secure by default. The loopback-only dev profile and local Compose configuration turn Secure off for local HTTP. Production requires HTTPS and Secure cookies. The React client uses same-origin requests through the development or container proxy. Session credentials are not stored in browser local storage.
 
 ## Workflows
 
@@ -25,25 +27,59 @@ Cookies are HttpOnly, SameSite=Lax, and Secure by default. The loopback-only dev
 
 Pages return `{items, total, page, size}`. Page must be nonnegative; size is 1–100. Unowned and missing objects both return 404. Archived workflows remain inspectable by their owner and cannot be updated; active listings exclude them. Stale updates return 409. Updates and archive operations lock only the owned workflow row inside a transaction.
 
-Create body:
+Create body (a runnable local workflow):
 
 ```json
 {
-  "name": "Support intake",
-  "description": "Triage incoming issues",
+  "name": "Deterministic support intake",
+  "description": "Local classification, documentation lookup and persisted result. No model or external ticket service.",
   "definition": {
     "nodes": [
-      {"id": "intake", "type": "TRIGGER", "label": "Receive issue"},
-      {"id": "ticket", "type": "ACTION", "label": "Create ticket"}
+      {
+        "id": "receive",
+        "type": "TRIGGER",
+        "label": "Receive issue"
+      },
+      {
+        "id": "classify",
+        "type": "ACTION",
+        "label": "Classify issue",
+        "operation": "CLASSIFY_ISSUE"
+      },
+      {
+        "id": "search",
+        "type": "ACTION",
+        "label": "Find documentation",
+        "operation": "SEARCH_DOCUMENTATION"
+      },
+      {
+        "id": "record",
+        "type": "ACTION",
+        "label": "Record result",
+        "operation": "RECORD_RESULT"
+      }
     ],
-    "edges": [{"source": "intake", "target": "ticket"}]
+    "edges": [
+      {
+        "source": "receive",
+        "target": "classify"
+      },
+      {
+        "source": "classify",
+        "target": "search"
+      },
+      {
+        "source": "search",
+        "target": "record"
+      }
+    ]
   }
 }
 ```
 
 An update uses the same body plus `"expectedVersion": 1`. Names are required, limited to 120 characters, and trimmed. Description is required and limited to 2,000 characters. Definitions support 1–50 nodes and at most 100 edges; node IDs match `[a-zA-Z0-9_-]{1,64}` and labels are required, at most 120 characters. Node types: TRIGGER, AI_STEP, CONDITION, APPROVAL, ACTION.
 
-Saving validates structure: exactly one trigger, unique IDs, existing edge endpoints, no duplicate/self edges, no cycles, and every node reachable from the trigger. Saving a graph has no execution effect. Nodes can optionally include an `operation` enum; existing definitions without it remain readable. The registered local operations are `RECEIVE_INPUT`, `CLASSIFY_ISSUE`, `SEARCH_DOCUMENTATION`, and `RECORD_RESULT`. An unknown operation is a malformed request. Nodes may include `position: {x, y}` for the visual editor; both coordinates are required when present and bounded to −10,000 through 10,000. Positions are optional versioned metadata and have no execution meaning.
+Saving validates structure: exactly one trigger, unique IDs, existing edge endpoints, no duplicate/self edges, no cycles, and every node reachable from the trigger. Saving a graph has no execution effect. Nodes can optionally include an `operation` enum; existing definitions without it remain readable. The registered local operations are `RECEIVE_INPUT`, `CLASSIFY_ISSUE`, `SEARCH_DOCUMENTATION`, and `RECORD_RESULT`. The external operation `CREATE_TICKET` is also recognized, with the additional approval and destination requirements described below. An unknown operation is a malformed request. Nodes may include `position: {x, y}` for the visual editor; both coordinates are required when present and bounded to −10,000 through 10,000. Positions are optional versioned metadata and have no execution meaning.
 
 Validation errors are 400; conflicting changes are 409. Controller errors return `{status, message, timestamp}`. Authentication/CSRF errors are 401/403 from Spring Security. Errors do not expose stack traces. `GET /actuator/health` exposes health without internal details.
 
@@ -68,9 +104,9 @@ Start body:
 
 `versionNumber` is required and positive. `idempotencyKey` is required and matches `[a-zA-Z0-9_-]{1,100}`. Subject and body are nonblank, limited to 200 and 4,000 characters respectively. Unknown input fields fail validation. Keys are scoped to the authenticated owner and workflow and permanently bound to the requested version and exact input. Replaying the same request returns the same run with 202, including after completion or archive. Changed input or version returns 409. A new run of an archived workflow returns 409; missing/unowned workflow, version, or run returns 404.
 
-Execution requires a single chain of TRIGGER/ACTION/configured AI_STEP/APPROVAL nodes. The trigger receives input and can omit its operation or specify `RECEIVE_INPUT`. Every action must explicitly specify one of the other three operations; labels do not select behavior. Condition, branching, and unconfigured action/agent/approval nodes return 400 before run creation. See [the action example](../examples/support-intake.json) and [the agent example](../examples/agent-support-intake.json).
+Execution requires a single chain of TRIGGER/ACTION/configured AI_STEP/APPROVAL nodes. The trigger receives input and can omit its operation or specify `RECEIVE_INPUT`. Every action must explicitly specify a supported action operation; labels do not select behavior. `CREATE_TICKET` additionally requires the final-step approval contract below. Condition, branching, and unconfigured action/agent/approval nodes return 400 before run creation. See [the action example](../examples/support-intake.json) and [the agent example](../examples/agent-support-intake.json).
 
-Details contain `id`, `workflowId`, `versionId`, `versionNumber`, `mode` (DETERMINISTIC, DETERMINISTIC_PLANNER, OPENAI_PLANNER or GEMINI_PLANNER), `status`, lifecycle timestamps, `errorCode`, submitted `input`, current `context`, ordered `steps`, `events`, `plannerCalls`, `toolCalls`, `reservedPlannerTokens`, `plannerTokens` and `approvals`. Each step contains node ID, ordinal, operation, status, attempts, input/output, timestamps, safe error code and nullable planner/proposal/policy metadata, planningState, planningDeadline and nextAttemptAt. The trigger's input is the submitted issue; later steps receive the previous checkpoint. Outputs are full checkpoint snapshots. Audit events have sequence, node ID, event type, UTC timestamp, and optional tool name/decision code; they contain no issue text or credentials.
+Details contain `id`, `workflowId`, `versionId`, `versionNumber`, `mode` (DETERMINISTIC, DETERMINISTIC_PLANNER, OPENAI_PLANNER or GEMINI_PLANNER), `status`, lifecycle timestamps, `errorCode`, submitted `input`, current `context`, ordered `steps`, `events`, `plannerCalls`, `toolCalls`, `reservedPlannerTokens`, `plannerTokens`, `approvals` and `tickets`. Each step contains node ID, ordinal, operation, status, attempts, input/output, timestamps, safe error code and nullable planner/proposal/policy metadata, planningState, planningDeadline and nextAttemptAt. The trigger's input is the submitted issue; later steps receive the previous checkpoint. Outputs are full checkpoint snapshots. Audit events have sequence, node ID, event type, UTC timestamp, and optional tool name/decision code; they contain no issue text or credentials.
 
 Runs transition `PENDING → RUNNING → SUCCEEDED/FAILED`, may pause at `WAITING_FOR_APPROVAL` and resume RUNNING, or cancel from any nonterminal state. Each step is atomically recorded as SUCCEEDED or FAILED; unexecuted steps remain PENDING or become CANCELLED. Cancellation preserves completed steps and prevents future ones. Repeated cancellation is idempotent; cancellation of a succeeded/failed run returns 409. A short local action already holding the run lock finishes before cancellation can acquire that lock.
 
@@ -91,7 +127,7 @@ An agent node omits `operation` and supplies these settings:
 
 Goals are CLASSIFY_ISSUE or FIND_DOCUMENTATION. The allowlist contains one or two distinct registered names, and maxToolCalls is 1–3. Registration and executable semantics are checked again at run start. Agent settings cannot be attached to trigger/action nodes, and condition nodes are unsupported. Existing saved definitions remain readable with null agent settings.
 
-`GET /api/tools` requires authentication and returns two code-controlled definitions containing name, description, READ_ONLY risk, allowed USER role, and argumentSchema. There is no registration/update endpoint. Arguments are exact JSON objects: classify_issue requires nonblank subject (max 200) and body (max 4000), matching the submitted issue; search_documentation requires category ACCOUNT/BILLING/GENERAL matching the current classification. Additional fields, owner IDs, URLs, roles, approval flags and changed issue context are denied.
+`GET /api/tools` requires authentication and returns the code-controlled catalog: two READ_ONLY tools (`classify_issue`, `search_documentation`) and the EXTERNAL_WRITE action descriptor (`create_ticket`). Entries include name, description, risk, allowed role and argument schema. Only the two read-only tools are allowed in AI proposals. There is no registration/update endpoint. Arguments are exact JSON objects: classify_issue requires nonblank subject (max 200) and body (max 4000), matching the submitted issue; search_documentation requires category ACCOUNT/BILLING/GENERAL matching the current classification. Additional fields, owner IDs, URLs, roles, approval flags and changed issue context are denied.
 
 The planner returns this envelope; it never supplies permissions or execution settings:
 
@@ -101,18 +137,24 @@ The planner returns this envelope; it never supplies permissions or execution se
 
 Java validates the whole batch before execution and revalidates frozen arguments before dispatch. Strict parsing rejects unknown fields, duplicate JSON keys and trailing content. A successful agent step exposes plannerId, canonical proposal, policyStatus APPROVED, and decisionCode APPROVED. A denied step exposes policyStatus DENIED and a safe code, with null proposal; malformed/denied raw output is not stored. Java policy approval does not represent a human approval.
 
-Limits are five planner calls and ten tool calls per run, one proposal per agent step, at most three tool calls per proposal (subject to the configured step budget), a 16 KiB UTF-8 proposal cap, and 120 active seconds from RUNNING for all runs, excluding persisted human approval waits. The worker checks elapsed budget before every step, including final actions. Current tool handlers remain bounded local functions.
+Limits are five planner calls and ten tool calls per run, one proposal per agent step, at most three tool calls per proposal (subject to the configured step budget), a 16 KiB UTF-8 proposal cap, and 120 active seconds from RUNNING for all runs, excluding persisted human approval waits. The worker checks elapsed budget before every step, including final actions. AI-proposable handlers remain bounded local functions; GitHub creation uses the separate approved external-action path below.
 
 Safe failure codes include INVALID_PROPOSAL, PROPOSAL_TOO_LARGE, UNKNOWN_TOOL, TOOL_NOT_ALLOWED, INVALID_TOOL_ARGUMENTS, TOOL_CONTEXT_MISMATCH, TOOL_ROLE_DENIED, TOOL_BUDGET_EXHAUSTED, PLANNER_BUDGET_EXHAUSTED, RUN_DEADLINE_EXCEEDED and PLANNER_FAILURE. Failures terminate the run and cancel later steps. In deterministic mode, usage counts are committed local attempts and transaction rollback restores the previous usage/checkpoint. Live intent usage follows the lifecycle below. Planner failures expose no provider exception text.
 
 ## Live planner lifecycle
 
-The server selects live mode for new agent runs when agentflow.planner.provider=openai or gemini; the client cannot supply a provider, principal or token limit. Provider mode and model identity are frozen with the run. A provider mismatch fails with PLANNER_UNAVAILABLE before dispatch; no automatic fallback occurs. Each call commits PLANNING_REQUESTED, one planner call and an 18,000-token reservation before network dispatch. The step remains PENDING with planningState REQUESTED and a 35-second planningDeadline. A matching result resolves the intent and passes Java policy before tool execution. Success stores reported plannerTokens and planningState RESOLVED. A successful four-step live demo adds two request events to the deterministic trace, totaling fifteen events.
+The server selects live mode for new agent runs when agentflow.planner.provider=openai or gemini; the client cannot supply a provider, principal or token limit. Provider mode and model identity are frozen with the run. A provider mismatch fails with PLANNER_UNAVAILABLE before dispatch; no automatic fallback occurs. Each call commits PLANNING_REQUESTED, one planner call and an 18,000-token reservation before network dispatch. The step remains PENDING with planningState REQUESTED and a 35-second planningDeadline. A matching result resolves the intent and passes Java policy before tool execution. Success stores reported plannerTokens and planningState RESOLVED.
 
 Cancellation abandons the intent without waiting for the model and prevents late tools. Duplicate results do nothing. Unresolved intents are never resent after restart: they fail with PLANNING_OUTCOME_UNKNOWN at expiry. A result transaction rollback retains the earlier intent and reservation. Reservations cap application dispatch and remain consumed on uncertainty; reported tokens cover committed result transactions, not all potentially billed requests. Deterministic reservations/tokens remain zero.
 
 Live calls cap input at 15,000 UTF-8 bytes, HTTP responses at 64 KiB, completions at 1,024 tokens and dispatch wait at 30 seconds. Total reserved tokens cannot exceed 90,000. Automatic retries and model/tool recursion are disabled. PLANNER_TIMEOUT, PLANNER_TOKEN_LIMIT, PLANNER_UNAVAILABLE and PLANNING_OUTCOME_UNKNOWN are terminal. HTTP 401/403 maps to PLANNER_AUTHENTICATION. Allowlisted 429 codes distinguish PLANNER_QUOTA and PLANNER_RATE_LIMIT; unknown 429 bodies use PLANNER_ACCESS_LIMIT. Provider body/exception details are discarded. Starting a new run is an explicit new request and may spend API tokens; request idempotency still reuses the original failed run.
 
+
+## Operations monitoring
+
+`GET /api/operations` requires a session and the current persisted USER role. Ownership comes from the principal; query parameters cannot select another owner. The read-only, `Cache-Control: no-store` response contains `capturedAt` (UTC), `totalRuns`, `pendingRuns`, `runningRuns`, `waitingRuns`, `succeededRuns`, `failedRuns`, `cancelledRuns`, `pendingApprovals`, `overdueApprovals`, `retryingSteps`, `unknownTickets` and `sendingTickets`.
+
+Run counts include all retained runs, including archived workflow history. Pending approvals belong to owned waiting runs; overdue means the pending deadline is at or before `capturedAt`, awaiting worker expiry. Retry counts include PENDING steps with a persisted `nextAttemptAt` only on PENDING/RUNNING runs. UNKNOWN/SENDING intents count even on cancelled runs, because cancellation cannot undo an in-flight external action. One aggregate SQL statement reads a consistent database snapshot without returning inputs, payloads, IDs, tokens or error bodies. This endpoint neither checks provider availability nor changes execution state.
 
 ## Human approvals
 
@@ -149,8 +191,10 @@ Schedules, attempts and audits commit together; rollback preserves the prior sta
 
 ## Approved GitHub ticket action
 
+Provider references: [create an issue](https://docs.github.com/en/rest/issues/issues#create-an-issue) and [get an issue](https://docs.github.com/en/rest/issues/issues#get-an-issue).
+
 ```json
-{"id":"ticket","type":"ACTION","label":"Create GitHub issue","operation":"CREATE_TICKET","ticket":{"repository":"Dhruv-Sharma29/test"}}
+{"id":"ticket","type":"ACTION","label":"Create GitHub issue","operation":"CREATE_TICKET","ticket":{"repository":"your-org/your-repo"}}
 ```
 
 This action must be final and immediately after an approval checkpoint. Classification must already exist in the checkpoint. Java builds an exact title/body from the submitted issue and validated classification, adding an immutable node UUID correlation marker. The approval's `payload.ticket` contains `{repository,title,body}`. Models cannot propose this tool through AI steps or change its destination.
