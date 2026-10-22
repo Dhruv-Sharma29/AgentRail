@@ -148,3 +148,19 @@ export interface TicketConnector {
   repository: string;
   ready: boolean;
 }
+
+export interface OperationsSnapshot {
+  capturedAt: string;
+  totalRuns: number;
+  pendingRuns: number;
+  runningRuns: number;
+  waitingRuns: number;
+  succeededRuns: number;
+  failedRuns: number;
+  cancelledRuns: number;
+  pendingApprovals: number;
+  overdueApprovals: number;
+  retryingSteps: number;
+  unknownTickets: number;
+  sendingTickets: number;
+}

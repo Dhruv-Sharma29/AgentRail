@@ -1,11 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  GitBranch,
-  ShieldCheck,
-  LogOut,
-  Blocks,
-  ArrowUpRight,
-} from "lucide-react";
+import { GitBranch, ShieldCheck, LogOut, Blocks, Activity } from "lucide-react";
 import { api, message } from "./api";
 import type { User } from "./types";
 import { Login } from "./Login";
@@ -14,6 +8,7 @@ import { WorkflowPage } from "./Editor";
 import { RunView } from "./RunView";
 import { Approvals } from "./Approvals";
 import { Tools } from "./Tools";
+import { Operations } from "./Operations";
 import { ErrorNotice, Logo } from "./ui";
 import { draftGuard, normalizeRoute } from "./navigation";
 export default function App() {
@@ -95,19 +90,14 @@ export default function App() {
     runs: "Execution",
     approvals: "Approvals",
     tools: "Tool registry",
+    operations: "Operations",
   };
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
           <Logo />
-          AgentFlow
-        </div>
-        <div className="workspace-select">
-          <span className="workspace-avatar">AF</span>
-          <div>
-            Personal workspace<small>Your automation studio</small>
-          </div>
+          AgentRail
         </div>
         <span className="nav-caption">WORKSPACE</span>
         <nav>
@@ -116,11 +106,17 @@ export default function App() {
               ["workflows", GitBranch, "Workflows"],
               ["approvals", ShieldCheck, "Approvals"],
               ["tools", Blocks, "Tool registry"],
+              ["operations", Activity, "Operations"],
             ] as const
           ).map(([path, Icon, label]) => (
             <button
               key={path}
               aria-label={label}
+              aria-current={
+                section === path || (path === "workflows" && section === "runs")
+                  ? "page"
+                  : undefined
+              }
               className={
                 section === path || (path === "workflows" && section === "runs")
                   ? "active"
@@ -130,28 +126,14 @@ export default function App() {
             >
               <Icon size={18} />
               {label}
-              {section === path && <span className="nav-mark" />}
             </button>
           ))}
         </nav>
-        <div className="sidebar-note">
-          <span className="eyebrow">BUILT FOR CONTROL</span>
-          <p>
-            Clear steps.
-            <br />
-            Considered actions.
-            <br />A trace you can trust.
-          </p>
-          <ArrowUpRight size={18} />
-        </div>
         <div className="user-box">
           <span className="user-avatar">
             {user.username.slice(0, 2).toUpperCase()}
           </span>
-          <div>
-            {user.username}
-            <small>Workspace member</small>
-          </div>
+          <div>{user.username}</div>
           <button aria-label="Sign out" onClick={logout}>
             <LogOut size={17} />
           </button>
@@ -160,13 +142,9 @@ export default function App() {
       <div className="main-shell">
         <header className="topbar">
           <span>
-            Personal workspace <span className="slash">/</span>
+            Workspace <span className="slash">/</span>
             {labels[section] ?? "Workflows"}
           </span>
-          <div>
-            <ShieldCheck size={13} />
-            Session authenticated
-          </div>
         </header>
         <main className="page" key={user.username}>
           <ErrorNotice>{error}</ErrorNotice>
@@ -182,6 +160,7 @@ export default function App() {
           {section === "runs" && id && <RunView id={id} navigate={navigate} />}
           {section === "approvals" && <Approvals id={id} navigate={navigate} />}
           {section === "tools" && <Tools />}
+          {section === "operations" && <Operations navigate={navigate} />}
         </main>
       </div>
     </div>

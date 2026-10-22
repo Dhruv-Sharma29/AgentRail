@@ -1,4 +1,53 @@
 import { test, expect, type Page } from "@playwright/test";
+test("operations shows real owner queues and survives refresh", async ({
+  page,
+}, testInfo) => {
+  await login(page);
+  await create(page, "Operations monitoring fixture");
+  await start(page);
+  const runId = page.url().split("/").pop();
+  await page.getByRole("button", { name: "Operations", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Operations", exact: true }),
+  ).toBeVisible();
+  const snapshot = await (await page.request.get("/api/operations")).json();
+  expect(snapshot.pendingApprovals).toBeGreaterThanOrEqual(1);
+  await expect(page.getByTestId("operations-failed")).toHaveText(
+    new RegExp(`^${snapshot.failedRuns}\\s*Across retained history$`),
+  );
+  await expect(page.getByTestId("operations-retries")).toHaveText(
+    new RegExp(`^${snapshot.retryingSteps}\\s*Steps with a scheduled retry$`),
+  );
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Operations", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Refresh operations", exact: true })
+    .click();
+  await expect(page.getByText("Last updated:", { exact: false })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.screenshot({
+    path: testInfo.outputPath("operations.png"),
+    fullPage: true,
+  });
+  await page
+    .getByRole("button", { name: "Open approvals", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Approval inbox" }),
+  ).toBeVisible();
+  const csrf = await (await page.request.get("/api/auth/csrf")).json();
+  await page.request.post(`/api/runs/${runId}/cancel`, {
+    headers: { [csrf.headerName]: csrf.token },
+  });
+});
 async function login(page: Page) {
   await page.goto("/");
   await page.getByLabel("Username", { exact: true }).fill("demo");
